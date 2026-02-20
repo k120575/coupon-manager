@@ -1,5 +1,5 @@
 /**
- * 批次存入模組
+ * 批次存入模組（含類別）
  */
 
 function handleBatchInsert(replyToken, dataSheet, userId, userText) {
@@ -23,12 +23,16 @@ function handleBatchInsert(replyToken, dataSheet, userId, userText) {
         }]
       });
       return;
-    } else { dataSheet.appendRow([userId, entry.name, entry.date, STATUS.ACTIVE]); successList.push(entry.name); lines.shift(); }
+    } else {
+      appendCouponRow(dataSheet, userId, entry.name, entry.date, DEFAULT_CATEGORY);
+      successList.push(entry.name);
+      lines.shift();
+    }
   }
-  sendMainMenu(replyToken, `💾 批次存入完成！\n\n${successList.join('\n')}`);
+  sendMainMenu(replyToken, `💾 批次存入完成！（類別：${DEFAULT_CATEGORY}）\n\n${successList.join('\n')}`);
 }
 
-/** 強制存入（不再遞迴 doPost，改用 for loop） */
+/** 強制存入（for loop，不遞迴） */
 function handleForceBatch(replyToken, dataSheet, userId, userText) {
   const content = userText.replace('強制存入 ', '').trim();
   const allLines = content.split('\n');
@@ -40,14 +44,12 @@ function handleForceBatch(replyToken, dataSheet, userId, userText) {
     const entry = parseEntry(line);
     if (!entry) continue;
 
-    // 第一行直接強制存入（使用者已確認）
     if (i === 0) {
-      dataSheet.appendRow([userId, entry.name, entry.date, STATUS.ACTIVE]);
+      appendCouponRow(dataSheet, userId, entry.name, entry.date, DEFAULT_CATEGORY);
       successList.push(entry.name);
       continue;
     }
 
-    // 後續行檢查重複
     if (isDuplicate(dataSheet, userId, entry.name, entry.date)) {
       const remainingLines = allLines.slice(i + 1).join('\n');
       const nextBatchSuffix = remainingLines ? `\n${remainingLines}` : '';
@@ -64,7 +66,7 @@ function handleForceBatch(replyToken, dataSheet, userId, userText) {
       });
       return;
     } else {
-      dataSheet.appendRow([userId, entry.name, entry.date, STATUS.ACTIVE]);
+      appendCouponRow(dataSheet, userId, entry.name, entry.date, DEFAULT_CATEGORY);
       successList.push(entry.name);
     }
   }

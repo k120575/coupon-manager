@@ -1,17 +1,18 @@
 /**
  * ==========================================
- * 優惠券管理系統 (Line Bot) - v2.0 模組化版
+ * 優惠券管理系統 (Line Bot) - v3.0 分類+分頁版
  * ==========================================
  * 
  * 檔案結構：
- *   config.gs  — 全域常數與設定
+ *   config.gs  — 全域常數與設定（含類別定義）
  *   auth.gs    — 安全驗證（signature、同意、rate limiting）
  *   line.gs    — LINE Messaging API 工具函式
- *   utils.gs   — 共用工具函式
- *   coupon.gs  — 票券 CRUD 操作
+ *   utils.gs   — 共用工具函式（含類別工具）
+ *   coupon.gs  — 票券 CRUD（含類別 + carousel 分頁）
  *   batch.gs   — 批次存入
- *   ocr.gs     — Gemini 圖片辨識
+ *   ocr.gs     — Gemini 圖片辨識（含類別）
  *   notify.gs  — 到期通知
+ *   richmenu.gs — Rich Menu 設定腳本
  *   main.gs    — 主入口（本檔案）
  */
 
@@ -19,7 +20,6 @@ function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) return;
 
-    // Signature 驗證
     if (!verifySignature(e)) {
       console.log('Invalid signature, rejecting request.');
       return;
@@ -32,7 +32,6 @@ function doPost(e) {
     const userId = event.source.userId;
     const replyToken = event.replyToken;
 
-    // Rate Limiting
     if (isRateLimited(userId)) {
       sendMainMenu(replyToken, '⏳ 操作太頻繁，請稍後再試。');
       return;
@@ -42,7 +41,7 @@ function doPost(e) {
     const userSheet = ss.getSheetByName('users') || ss.insertSheet('users');
     const dataSheet = ss.getSheetByName('data') || ss.insertSheet('data');
 
-    // --- 1. Postback 處理 ---
+    // --- 1. Postback ---
     if (event.type === 'postback') {
       handlePostback(event.postback.data, replyToken, userId, userSheet, dataSheet);
       return;
@@ -70,50 +69,85 @@ function doPost(e) {
 // Postback 路由
 // ==========================================
 function handlePostback(pbData, replyToken, userId, userSheet, dataSheet) {
-  if (pbData === 'action=agree') {
+  const params = parsePostbackParams(pbData);
+
+  // 同意條款不需要檢查
+  if (params.action === 'agree') {
     if (!checkAgreement(userSheet, userId)) userSheet.appendRow([userId, true]);
     sendMainMenu(replyToken, '✅ 感謝同意！請使用下方選單：');
     return;
   }
 
-  if (pbData.startsWith('action=confirm_use')) {
-    const params = parsePostbackParams(pbData);
-    sendToLine('reply', {
-      'replyToken': replyToken, 'messages': [{
-        'type': 'text', 'text': `❓ 確定要「使用」這張票券嗎？\n🎫 ${params.name}`,
-        'quickReply': { 'items': [
-          { 'type': 'action', 'action': { 'type': 'postback', 'label': '✅ 確定使用', 'data': `action=execute_use&row=${params.row}` } },
-          { 'type': 'action', 'action': { 'type': 'message', 'label': '❌ 取消', 'text': '取消' } }
-        ]}
-      }]
-    });
-    return;
-  }
+  // 其他操作都要檢查同意
+  if (!checkAgreement(userSheet, userId)) { sendConsentMessage(replyToken); return; }
 
-  if (pbData.startsWith('action=confirm_delete')) {
-    const params = parsePostbackParams(pbData);
-    sendToLine('reply', {
-      'replyToken': replyToken, 'messages': [{
-        'type': 'text', 'text': `⚠️ 確定要「刪除」這張票券嗎？\n🗑️ ${params.name}`,
-        'quickReply': { 'items': [
-          { 'type': 'action', 'action': { 'type': 'postback', 'label': '🔥 確定刪除', 'data': `action=execute_delete&row=${params.row}` } },
-          { 'type': 'action', 'action': { 'type': 'message', 'label': '❌ 取消', 'text': '取消' } }
-        ]}
-      }]
-    });
-    return;
-  }
+  switch (params.action) {
+    case 'confirm_use':
+      sendToLine('reply', {
+        'replyToken': replyToken, 'messages': [{
+          'type': 'text', 'text': `❓ 確定要「使用」這張票券嗎？\n🎫 ${params.name}`,
+          'quickReply': { 'items': [
+            { 'type': 'action', 'action': { 'type': 'postback', 'label': '✅ 確定使用', 'data': `action=execute_use&row=${params.row}&name=${encodeURIComponent(params.name)}` } },
+            { 'type': 'action', 'action': { 'type': 'message', 'label': '❌ 取消', 'text': '取消' } }
+          ]}
+        }]
+      });
+      break;
 
-  if (pbData.startsWith('action=execute_use')) {
-    const row = pbData.split('&row=')[1];
-    sendMainMenu(replyToken, executeActionByRow(dataSheet, userId, row, STATUS.USED));
-    return;
-  }
+    case 'confirm_delete':
+      sendToLine('reply', {
+        'replyToken': replyToken, 'messages': [{
+          'type': 'text', 'text': `⚠️ 確定要「刪除」這張票券嗎？\n🗑️ ${params.name}`,
+          'quickReply': { 'items': [
+            { 'type': 'action', 'action': { 'type': 'postback', 'label': '🔥 確定刪除', 'data': `action=execute_delete&row=${params.row}&name=${encodeURIComponent(params.name)}` } },
+            { 'type': 'action', 'action': { 'type': 'message', 'label': '❌ 取消', 'text': '取消' } }
+          ]}
+        }]
+      });
+      break;
 
-  if (pbData.startsWith('action=execute_delete')) {
-    const row = pbData.split('&row=')[1];
-    sendMainMenu(replyToken, executeActionByRow(dataSheet, userId, row, STATUS.DELETED));
-    return;
+    case 'execute_use':
+      sendMainMenu(replyToken, executeActionByRow(dataSheet, userId, params.row, STATUS.USED, params.name));
+      break;
+
+    case 'execute_delete':
+      sendMainMenu(replyToken, executeActionByRow(dataSheet, userId, params.row, STATUS.DELETED, params.name));
+      break;
+
+    case 'query_cat': {
+      const catFilter = params.cat || null;
+      const filter = params.filter || 'active_valid_search';
+      sendToLine('reply', { 'replyToken': replyToken, 'messages': [getCouponListByStatus(dataSheet, userId, filter, catFilter)] });
+      break;
+    }
+
+    case 'select_cat':
+      handleCategorySelection(replyToken, dataSheet, userId, params.cat);
+      break;
+
+    case 'ocr_save_single': {
+      const cache = CacheService.getScriptCache();
+      const ocrRaw = cache.get('ocr_' + userId);
+      if (!ocrRaw) { sendMainMenu(replyToken, '⚠️ OCR 資料已過期，請重新傳送圖片。'); break; }
+      const ocrItems = JSON.parse(ocrRaw);
+      const idx = parseInt(params.idx);
+      if (isNaN(idx) || idx < 0 || idx >= ocrItems.length) { sendMainMenu(replyToken, '❌ 操作失敗。'); break; }
+      const ocrItem = ocrItems[idx];
+      appendCouponRow(dataSheet, userId, ocrItem.name, ocrItem.date, ocrItem.category);
+      cache.remove('ocr_' + userId);
+      sendMainMenu(replyToken, `💾 已存入：${getCategoryEmoji(ocrItem.category)} ${ocrItem.name}`);
+      break;
+    }
+
+    case 'force_save': {
+      const forceCache = CacheService.getScriptCache();
+      const forceRaw = forceCache.get('pending_force_' + userId);
+      if (!forceRaw) { sendMainMenu(replyToken, '⚠️ 操作已過期，請重新輸入。'); break; }
+      const forceData = JSON.parse(forceRaw);
+      forceCache.remove('pending_force_' + userId);
+      askCategory(replyToken, userId, forceData.name, forceData.date);
+      break;
+    }
   }
 }
 
@@ -121,6 +155,12 @@ function handlePostback(pbData, replyToken, userId, userSheet, dataSheet) {
 // 文字訊息路由
 // ==========================================
 function handleTextMessage(userText, replyToken, dataSheet, userId) {
+  // OCR 全部存入
+  if (userText === 'OCR全部存入') {
+    handleOcrBatchSave(replyToken, dataSheet, userId);
+    return;
+  }
+
   if (userText.startsWith('批次存入')) { handleBatchInsert(replyToken, dataSheet, userId, userText); return; }
   if (userText.startsWith('強制存入 ')) { handleForceBatch(replyToken, dataSheet, userId, userText); return; }
 
@@ -130,6 +170,7 @@ function handleTextMessage(userText, replyToken, dataSheet, userId) {
   switch (userText) {
     case '❓ 幫助': sendHelpMessage(replyToken); return;
     case '📋 查詢票券': sendSearchMenu(replyToken); return;
+    case '🏷️ 分類查詢': sendCategorySearchMenu(replyToken); return;
     case '✅ 使用票券': sendToLine('reply', { 'replyToken': replyToken, 'messages': [getCouponListByStatus(dataSheet, userId, 'active_valid')] }); return;
     case '🗑️ 刪除票券': sendToLine('reply', { 'replyToken': replyToken, 'messages': [getCouponListByStatus(dataSheet, userId, 'delete_mode')] }); return;
     case '➕ 記錄優惠券': sendMainMenu(replyToken, '請輸入「名稱 日期」或傳照片！\n例如：咖啡券 2026/05/20'); return;

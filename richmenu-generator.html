@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Rich Menu Generator v3</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            font-family: sans-serif;
+            color: #fff;
+        }
+
+        canvas {
+            border: 1px solid #333;
+            max-width: 95vw;
+        }
+
+        .controls {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            padding: 12px 32px;
+            font-size: 16px;
+            background: #0e8a7a;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0a6e62;
+        }
+
+        p {
+            color: #aaa;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>LINE Rich Menu 圖片 (2500×1686) v3 — 毛玻璃風格</h2>
+    <canvas id="c" width="2500" height="1686"></canvas>
+    <div class="controls">
+        <button onclick="download('png')">⬇️ 下載 PNG</button>
+        <button onclick="download('jpg')">⬇️ 下載 JPG</button>
+    </div>
+    <p>下載後上傳到 Google Drive → 執行 setupRichMenuAll("driveFileId")</p>
+
+    <script>
+        const W = 2500, H = 1686;
+        const COLS = 3, ROWS = 2;
+        const cellW = W / COLS, cellH = H / ROWS;
+        const GAP = 24; // gap between cards
+        const CARD_RAD = 36;
+
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+
+        // === Background: dark teal gradient ===
+        const bg = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, W * 0.7);
+        bg.addColorStop(0, '#1a3d3d');
+        bg.addColorStop(0.5, '#15302e');
+        bg.addColorStop(1, '#0c201f');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        // Subtle grid glow at intersections
+        function drawGlow(x, y) {
+            const g = ctx.createRadialGradient(x, y, 0, x, y, 120);
+            g.addColorStop(0, 'rgba(80, 220, 200, 0.25)');
+            g.addColorStop(1, 'rgba(80, 220, 200, 0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(x - 120, y - 120, 240, 240);
+        }
+        // Cross points
+        for (let c = 1; c < COLS; c++) {
+            drawGlow(c * cellW, cellH);
+        }
+        drawGlow(cellW, 0); drawGlow(cellW * 2, 0);
+        drawGlow(cellW, H); drawGlow(cellW * 2, H);
+        drawGlow(0, cellH); drawGlow(W, cellH);
+
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        // === Icon drawing functions ===
+        const drawIcons = [
+            // 查詢票券 - clipboard with checklist + magnifier
+            (ctx, cx, cy, s) => {
+                ctx.save();
+                ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                const cw = s * 0.45, ch = s * 0.55;
+                const cx0 = cx - s * 0.05, cy0 = cy - s * 0.02;
+                // clipboard body
+                roundRect(ctx, cx0 - cw / 2, cy0 - ch / 2, cw, ch, 12); ctx.stroke();
+                // clip tab
+                ctx.fillRect(cx0 - s * 0.1, cy0 - ch / 2 - s * 0.04, s * 0.2, s * 0.08);
+                roundRect(ctx, cx0 - s * 0.1, cy0 - ch / 2 - s * 0.06, s * 0.2, s * 0.08, 4); ctx.fill();
+                // check lines
+                ctx.lineWidth = 5;
+                for (let i = 0; i < 3; i++) {
+                    const ly = cy0 - s * 0.15 + i * s * 0.17;
+                    // checkbox
+                    ctx.strokeRect(cx0 - s * 0.14, ly - s * 0.03, s * 0.06, s * 0.06);
+                    // checkmark in box
+                    if (i < 2) {
+                        ctx.beginPath();
+                        ctx.moveTo(cx0 - s * 0.13, ly);
+                        ctx.lineTo(cx0 - s * 0.11, ly + s * 0.02);
+                        ctx.lineTo(cx0 - s * 0.08, ly - s * 0.02);
+                        ctx.stroke();
+                    }
+                    // line
+                    ctx.beginPath(); ctx.moveTo(cx0 - s * 0.04, ly); ctx.lineTo(cx0 + s * 0.14, ly); ctx.stroke();
+                }
+                // magnifying glass
+                ctx.lineWidth = 6;
+                const mx = cx + s * 0.22, my = cy + s * 0.2;
+                ctx.beginPath(); ctx.arc(mx, my, s * 0.1, 0, Math.PI * 2); ctx.stroke();
+                ctx.lineWidth = 7;
+                ctx.beginPath(); ctx.moveTo(mx + s * 0.07, my + s * 0.07); ctx.lineTo(mx + s * 0.15, my + s * 0.15); ctx.stroke();
+                ctx.restore();
+            },
+
+            // 分類查詢 - price tag
+            (ctx, cx, cy, s) => {
+                ctx.save();
+                ctx.strokeStyle = '#fff'; ctx.fillStyle = '#fff'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                // tag body (rotated diamond-ish shape)
+                ctx.beginPath();
+                ctx.moveTo(cx - s * 0.05, cy - s * 0.35);
+                ctx.lineTo(cx + s * 0.25, cy - s * 0.35);
+                ctx.lineTo(cx + s * 0.35, cy - s * 0.05);
+                ctx.lineTo(cx - s * 0.05, cy + s * 0.35);
+                ctx.lineTo(cx - s * 0.35, cy + s * 0.05);
+                ctx.lineTo(cx - s * 0.35, cy - s * 0.05);
+                ctx.closePath();
+                ctx.stroke();
+                // hole
+                ctx.beginPath(); ctx.arc(cx + s * 0.08, cy - s * 0.15, s * 0.06, 0, Math.PI * 2); ctx.stroke();
+                // string
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(cx - s * 0.35, cy - s * 0.05);
+                ctx.lineTo(cx - s * 0.42, cy - s * 0.12);
+                ctx.stroke();
+                ctx.restore();
+            },
+
+            // 記錄優惠券 - plus in circle
+            (ctx, cx, cy, s) => {
+                ctx.save();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.arc(cx, cy, s * 0.32, 0, Math.PI * 2); ctx.stroke();
+                ctx.lineWidth = 10;
+                ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.18); ctx.lineTo(cx, cy + s * 0.18); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx - s * 0.18, cy); ctx.lineTo(cx + s * 0.18, cy); ctx.stroke();
+                ctx.restore();
+            },
+
+            // 使用票券 - checkmark
+            (ctx, cx, cy, s) => {
+                ctx.save();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(cx - s * 0.28, cy + s * 0.02);
+                ctx.lineTo(cx - s * 0.05, cy + s * 0.25);
+                ctx.lineTo(cx + s * 0.3, cy - s * 0.22);
+                ctx.stroke();
+                ctx.restore();
+            },
+
+            // 刪除票券 - trash can
+            (ctx, cx, cy, s) => {
+                ctx.save();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                // lid
+                ctx.lineWidth = 8;
+                ctx.beginPath(); ctx.moveTo(cx - s * 0.28, cy - s * 0.25); ctx.lineTo(cx + s * 0.28, cy - s * 0.25); ctx.stroke();
+                // handle
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.moveTo(cx - s * 0.1, cy - s * 0.25);
+                ctx.lineTo(cx - s * 0.1, cy - s * 0.33);
+                ctx.lineTo(cx + s * 0.1, cy - s * 0.33);
+                ctx.lineTo(cx + s * 0.1, cy - s * 0.25);
+                ctx.stroke();
+                // body
+                ctx.lineWidth = 7;
+                ctx.beginPath();
+                ctx.moveTo(cx - s * 0.22, cy - s * 0.2);
+                ctx.lineTo(cx - s * 0.18, cy + s * 0.35);
+                ctx.lineTo(cx + s * 0.18, cy + s * 0.35);
+                ctx.lineTo(cx + s * 0.22, cy - s * 0.2);
+                ctx.stroke();
+                // vertical lines
+                ctx.lineWidth = 5;
+                ctx.beginPath(); ctx.moveTo(cx - s * 0.08, cy - s * 0.12); ctx.lineTo(cx - s * 0.06, cy + s * 0.26); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.12); ctx.lineTo(cx, cy + s * 0.26); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx + s * 0.08, cy - s * 0.12); ctx.lineTo(cx + s * 0.06, cy + s * 0.26); ctx.stroke();
+                ctx.restore();
+            },
+
+            // 使用說明 - question mark in circle
+            (ctx, cx, cy, s) => {
+                ctx.save();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 8;
+                ctx.beginPath(); ctx.arc(cx, cy, s * 0.32, 0, Math.PI * 2); ctx.stroke();
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${s * 0.42}px "Microsoft JhengHei", "Arial", sans-serif`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText('?', cx + 1, cy + 4);
+                ctx.restore();
+            },
+        ];
+
+        const labels = ['查詢票券', '分類查詢', '記錄優惠券', '使用票券', '刪除票券', '使用說明'];
+
+        // === Draw cards ===
+        for (let i = 0; i < 6; i++) {
+            const col = i % COLS, row = Math.floor(i / COLS);
+            const x = col * cellW + GAP;
+            const y = row * cellH + GAP;
+            const w = cellW - GAP * 2;
+            const h = cellH - GAP * 2;
+
+            // Glassmorphism card background
+            const cardGrad = ctx.createLinearGradient(x, y, x + w, y + h);
+            cardGrad.addColorStop(0, 'rgba(180, 220, 215, 0.15)');
+            cardGrad.addColorStop(0.5, 'rgba(150, 200, 195, 0.10)');
+            cardGrad.addColorStop(1, 'rgba(130, 180, 175, 0.08)');
+
+            roundRect(ctx, x, y, w, h, CARD_RAD);
+            ctx.fillStyle = cardGrad;
+            ctx.fill();
+
+            // Card border (subtle frosted glass edge)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            // Inner highlight on top edge
+            ctx.save();
+            roundRect(ctx, x, y, w, h, CARD_RAD);
+            ctx.clip();
+            const topHighlight = ctx.createLinearGradient(x, y, x, y + h * 0.3);
+            topHighlight.addColorStop(0, 'rgba(255,255,255,0.08)');
+            topHighlight.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = topHighlight;
+            ctx.fillRect(x, y, w, h * 0.3);
+            ctx.restore();
+
+            // Icon
+            const iconCx = x + w / 2;
+            const iconCy = y + h * 0.38;
+            const iconSize = Math.min(w, h) * 0.60;
+            drawIcons[i](ctx, iconCx, iconCy, iconSize);
+
+            // Label
+            ctx.font = `bold 130px "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#ffffff';
+            const textY = y + h * 0.78;
+            ctx.fillText(labels[i], iconCx, textY);
+        }
+
+        function download(format) {
+            const link = document.createElement('a');
+            if (format === 'jpg') {
+                link.download = 'richmenu-2500x1686.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+            } else {
+                link.download = 'richmenu-2500x1686.png';
+                link.href = canvas.toDataURL('image/png');
+            }
+            link.click();
+        }
+    </script>
+</body>
+
+</html>

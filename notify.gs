@@ -1,5 +1,5 @@
 /**
- * 到期通知模組 (7/3/1/0 天)
+ * 到期通知模組 (7/3/1/0 天) — 讀 5 欄含類別
  */
 
 function checkAndNotify() {
@@ -9,12 +9,12 @@ function checkAndNotify() {
     const lastRow = dataSheet.getLastRow();
     if (lastRow < 2) return;
 
-    const data = dataSheet.getRange(1, 1, lastRow, 4).getValues();
+    const data = dataSheet.getRange(1, 1, lastRow, 5).getValues();
     const today = new Date(); today.setHours(0, 0, 0, 0);
     let notifications = {};
 
     for (let i = 1; i < data.length; i++) {
-      const [uId, name, date, status] = data[i];
+      const [uId, name, date, status, cat] = data[i];
       if (status !== STATUS.ACTIVE) continue;
       const d = new Date(date); d.setHours(0, 0, 0, 0);
       if (d.getFullYear() === 9999) continue;
@@ -23,7 +23,9 @@ function checkAndNotify() {
       if (NOTIFY_DAYS.includes(diffDays)) {
         if (!notifications[uId]) notifications[uId] = [];
         const label = diffDays === 0 ? '🔴 今天到期' : `🟡 ${diffDays} 天後到期`;
-        notifications[uId].push(`• ${name} (${label})`);
+        const emoji = getCategoryEmoji(cat);
+        const dateStr = Utilities.formatDate(d, 'GMT+8', 'yyyy/MM/dd');
+        notifications[uId].push(`${emoji} ${name} — ${dateStr} (${label})`);
       }
     }
     for (const uId in notifications) {

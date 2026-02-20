@@ -14,7 +14,9 @@ function verifySignature(e) {
 
 /** 同意條款檢查 */
 function checkAgreement(sheet, userId) {
-  const data = sheet.getDataRange().getValues();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 1) return false;
+  const data = sheet.getRange(1, 1, lastRow, 2).getValues();
   return data.some(r => r[0] === userId && r[1] === true);
 }
 
