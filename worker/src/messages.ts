@@ -17,7 +17,7 @@ export function consentMessage(): unknown {
     altText: '隱私條款',
     template: {
       type: 'confirm',
-      text: '📋 使用前請同意以下條款：\n\n本服務會儲存您的 LINE ID 及票券資訊（名稱、日期）於雲端資料庫中，僅供本機器人管理您的票券使用。\n\n您可隨時要求刪除所有資料。',
+      text: '📋 使用前請同意以下條款：\n\n本服務會儲存您的 LINE 使用者 ID 及票券資訊（名稱、到期日、張數、類別）於雲端資料庫中，僅供本機器人管理您的票券使用，不會分享給第三方。\n\n您可隨時要求刪除所有資料。',
       actions: [
         { type: 'postback', label: '✅ 同意', data: 'action=agree' },
         { type: 'message', label: '❌ 拒絕', text: '不同意' },
@@ -60,6 +60,21 @@ export function categorySearchMenu(): unknown {
   };
 }
 
+export function quantityPickerMessage(name: string, displayDate: string): unknown {
+  const presets = [1, 2, 3, 5, 10];
+  const items = [
+    ...presets.map((n) =>
+      qrPostback(`${n} 張`, `action=set_qty&n=${n}`, `${n} 張`),
+    ),
+    qrMessage('❌ 取消', '取消'),
+  ];
+  return {
+    type: 'text',
+    text: `📝 ${name} (${displayDate})\n\n請問有幾張？（或直接輸入數字）`,
+    quickReply: { items },
+  };
+}
+
 export function categoryPickerMessage(name: string, displayDate: string): unknown {
   const items = [
     ...CATEGORIES.map((cat) =>
@@ -83,9 +98,11 @@ export function helpMessage(): unknown {
     '💡 【優惠券管家使用說明】\n\n' +
       '1️⃣  如何記錄？ (推薦！✨)\n' +
       '📷 直接傳送【優惠券照片】給我，AI 會自動辨識名稱、日期與類別！\n' +
-      '✍️ 或是手動輸入「名稱 日期」，例如：『星巴克 2026/12/31』\n\n' +
+      '✍️ 或是手動輸入「名稱 日期」，例如：『星巴克 2026/12/31』\n' +
+      '👉 輸入後會問你「有幾張」→「類別」，按鈕或直接打數字都可以\n\n' +
       '2️⃣  如何使用票券？\n' +
-      '點擊下方【✅ 使用票券】，系統會列出清單，或輸入「使用 關鍵字」。\n\n' +
+      '點擊下方【✅ 使用票券】，系統會列出清單，或輸入「使用 關鍵字」。\n' +
+      '✨ 多張同名票券每次使用會扣一張，剩 0 張才變已使用\n\n' +
       '3️⃣  如何查詢票券？\n' +
       '📋 按狀態查詢（可使用/已過期/已使用）\n' +
       '🏷️ 按類別查詢（餐飲/購物/娛樂...）\n\n' +

@@ -5,7 +5,9 @@ import {
   insertCoupon,
   isDuplicate,
   listCoupons,
+  peekPending,
   putPending,
+  takePending,
 } from './db.js';
 import type { ListFilter } from './db.js';
 import { lineReply } from './line.js';
@@ -15,6 +17,7 @@ import {
   helpMessage,
   qrMessage,
   qrPostback,
+  quantityPickerMessage,
   searchMenuMessage,
   textMsg,
 } from './messages.js';
@@ -28,6 +31,19 @@ export async function handleTextMessage(
   userText: string,
 ): Promise<void> {
   const text = userText.trim();
+
+  // 使用者可能處在「選張數」步驟，直接輸入數字
+  if (/^\d{1,3}$/.test(text)) {
+    const pending = await peekPending(env.DB, userId);
+    if (pending && pending.kind === 'quantity') {
+      const n = Number(text);
+      if (n >= 1 && n <= 999) {
+        await takePending(env.DB, userId);
+        await transitionToCategory(env, replyToken, userId, pending.name, pending.date, n);
+        return;
+      }
+    }
+  }
 
   if (text === '批次存入' || text.startsWith('批次存入\n') || text.startsWith('批次存入 ')) {
     await handleBatchInsert(env, replyToken, userId, text);
@@ -61,7 +77,9 @@ export async function handleTextMessage(
       return;
     case '➕ 記錄優惠券':
       await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-        textMsg('請輸入「名稱 日期」或傳照片！\n例如：咖啡券 2026/05/20'),
+        textMsg(
+          '請輸入「名稱 日期」或傳照片！\n例如：咖啡券 2026/05/20\n\n📌 輸入後會依序詢問「張數」與「類別」。',
+        ),
       ]);
       return;
     case '取消':
@@ -133,10 +151,11 @@ export async function handleManualRecord(
     ]);
     return;
   }
-  await askCategory(env, replyToken, userId, name, date, displayDate);
+  await askQuantity(env, replyToken, userId, name, date, displayDate);
 }
 
-export async function askCategory(
+/** Step 1: 問張數 */
+export async function askQuantity(
   env: Env,
   replyToken: string,
   userId: string,
@@ -144,9 +163,26 @@ export async function askCategory(
   date: string,
   displayDate: string,
 ): Promise<void> {
-  await putPending(env.DB, userId, { kind: 'category', name, date });
+  await putPending(env.DB, userId, { kind: 'quantity', name, date });
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    categoryPickerMessage(name, displayDate),
+    quantityPickerMessage(name, displayDate),
+  ]);
+}
+
+/** Step 2: 張數選完 → 轉到類別選擇 */
+export async function transitionToCategory(
+  env: Env,
+  replyToken: string,
+  userId: string,
+  name: string,
+  date: string,
+  quantity: number,
+): Promise<void> {
+  await putPending(env.DB, userId, { kind: 'category', name, date, quantity });
+  const displayDate = date === '9999-12-31' ? '無期限' : date;
+  const qtyHint = quantity > 1 ? `　×${quantity} 張` : '';
+  await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
+    categoryPickerMessage(name, displayDate + qtyHint),
   ]);
 }
 
@@ -177,7 +213,7 @@ async function handleBatchInsert(
       duplicates.push({ name: entry.name, date: entry.date });
       continue;
     }
-    await insertCoupon(env.DB, userId, entry.name, entry.date, DEFAULT_CATEGORY);
+    await insertCoupon(env.DB, userId, entry.name, entry.date, DEFAULT_CATEGORY, 1);
     saved.push(entry.name);
   }
 
@@ -188,7 +224,12 @@ async function handleBatchInsert(
   if (duplicates.length > 0) {
     await putPending(env.DB, userId, {
       kind: 'ocr_batch',
-      items: duplicates.map((d) => ({ name: d.name, date: d.date, category: DEFAULT_CATEGORY })),
+      items: duplicates.map((d) => ({
+        name: d.name,
+        date: d.date,
+        category: DEFAULT_CATEGORY,
+        quantity: 1,
+      })),
     });
     summary.push(`⚠️ 發現 ${duplicates.length} 筆重複：\n${duplicates.map((d) => d.name).join('\n')}`);
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [

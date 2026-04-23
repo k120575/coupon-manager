@@ -25,12 +25,13 @@ export function buildCouponListMessage(
     const pageNum = Math.floor(p / MAX_BUBBLE_ITEMS) + 1;
 
     const bodyContents = chunk.map((c) => {
+      const nameWithQty = c.quantity > 1 ? `${c.name}  ×${c.quantity}` : c.name;
       const row: Record<string, unknown> = {
         type: 'box',
         layout: 'horizontal',
         contents: [
           { type: 'text', text: getCategoryEmoji(c.category), size: 'sm', flex: 1 },
-          { type: 'text', text: c.name, weight: 'bold', size: 'sm', flex: 5, wrap: true },
+          { type: 'text', text: nameWithQty, weight: 'bold', size: 'sm', flex: 5, wrap: true },
           {
             type: 'text',
             text: formatCouponDate(c.expire_date, today),

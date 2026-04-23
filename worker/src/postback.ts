@@ -1,17 +1,18 @@
-import { DEFAULT_CATEGORY, isCategory, STATUS } from './config.js';
+import { DEFAULT_CATEGORY, isCategory } from './config.js';
 import { buildCouponListMessage } from './coupon-list.js';
 import {
+  deleteCoupon,
   hasAgreed,
   insertCoupon,
   listCoupons,
   recordAgreement,
   takePending,
-  updateCouponStatus,
+  useOneCoupon,
 } from './db.js';
 import { lineReply } from './line.js';
 import { qrMessage, qrPostback, textMsg } from './messages.js';
 import { parsePostbackParams, toIsoDate } from './parser.js';
-import { askCategory } from './text.js';
+import { askQuantity, transitionToCategory } from './text.js';
 import type { Env } from './env.js';
 
 export async function handlePostback(
@@ -45,13 +46,16 @@ export async function handlePostback(
       await confirmAction(env, replyToken, params.id, 'delete');
       return;
     case 'execute_use':
-      await executeAction(env, replyToken, userId, params.id, 'used');
+      await executeUse(env, replyToken, userId, params.id);
       return;
     case 'execute_delete':
-      await executeAction(env, replyToken, userId, params.id, 'deleted');
+      await executeDelete(env, replyToken, userId, params.id);
       return;
     case 'query_cat':
       await queryByCategory(env, replyToken, userId, params);
+      return;
+    case 'set_qty':
+      await handleSetQuantity(env, replyToken, userId, params.n);
       return;
     case 'select_cat':
       await handleCategorySelection(env, replyToken, userId, params.cat);
@@ -101,28 +105,51 @@ async function confirmAction(
   ]);
 }
 
-async function executeAction(
+async function executeUse(
   env: Env,
   replyToken: string,
   userId: string,
   idStr: string | undefined,
-  newStatus: 'used' | 'deleted',
 ): Promise<void> {
   const id = Number(idStr);
   if (!Number.isFinite(id)) {
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 操作失敗。')]);
     return;
   }
-  const updated = await updateCouponStatus(env.DB, id, userId, newStatus);
-  if (!updated) {
+  const result = await useOneCoupon(env.DB, id, userId);
+  if (!result) {
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
       textMsg('❌ 此票券已被使用、刪除或不屬於您。'),
     ]);
     return;
   }
-  const verb = newStatus === STATUS.USED ? '使用' : '刪除';
+  const msg = result.isLast
+    ? `✅ 已成功使用：${result.name}`
+    : `✅ 已使用一張：${result.name}\n📦 剩餘 ${result.remaining} 張`;
+  await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg(msg)]);
+}
+
+async function executeDelete(
+  env: Env,
+  replyToken: string,
+  userId: string,
+  idStr: string | undefined,
+): Promise<void> {
+  const id = Number(idStr);
+  if (!Number.isFinite(id)) {
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 操作失敗。')]);
+    return;
+  }
+  const deleted = await deleteCoupon(env.DB, id, userId);
+  if (!deleted) {
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
+      textMsg('❌ 此票券已被使用、刪除或不屬於您。'),
+    ]);
+    return;
+  }
+  const qtyTag = deleted.quantity > 1 ? `（${deleted.quantity} 張一併刪除）` : '';
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    textMsg(`✅ 已成功${verb}：${updated.name}`),
+    textMsg(`✅ 已成功刪除：${deleted.name}${qtyTag}`),
   ]);
 }
 
@@ -163,10 +190,32 @@ async function handleCategorySelection(
     ]);
     return;
   }
-  await insertCoupon(env.DB, userId, pending.name, pending.date, cat);
+  await insertCoupon(env.DB, userId, pending.name, pending.date, cat, pending.quantity);
+  const qtyTag = pending.quantity > 1 ? `（×${pending.quantity} 張）` : '';
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    textMsg(`💾 成功記錄：${pending.name}\n${cat}`),
+    textMsg(`💾 成功記錄：${pending.name}${qtyTag}\n${cat}`),
   ]);
+}
+
+async function handleSetQuantity(
+  env: Env,
+  replyToken: string,
+  userId: string,
+  nStr: string | undefined,
+): Promise<void> {
+  const n = Number(nStr);
+  if (!Number.isFinite(n) || n < 1 || n > 999) {
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 張數無效。')]);
+    return;
+  }
+  const pending = await takePending(env.DB, userId);
+  if (!pending || pending.kind !== 'quantity') {
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
+      textMsg('⚠️ 操作已過期，請重新輸入票券資訊。'),
+    ]);
+    return;
+  }
+  await transitionToCategory(env, replyToken, userId, pending.name, pending.date, n);
 }
 
 async function handleForceSave(env: Env, replyToken: string, userId: string): Promise<void> {
@@ -177,9 +226,9 @@ async function handleForceSave(env: Env, replyToken: string, userId: string): Pr
     ]);
     return;
   }
-  // 強制存入流程繼續問類別
+  // 強制存入 → 繼續問張數
   const displayDate = pending.date === '9999-12-31' ? '無期限' : pending.date;
-  await askCategory(env, replyToken, userId, pending.name, pending.date, displayDate);
+  await askQuantity(env, replyToken, userId, pending.name, pending.date, displayDate);
 }
 
 async function handleForceBatch(env: Env, replyToken: string, userId: string): Promise<void> {
@@ -191,7 +240,7 @@ async function handleForceBatch(env: Env, replyToken: string, userId: string): P
     return;
   }
   for (const item of pending.items) {
-    await insertCoupon(env.DB, userId, item.name, item.date, item.category);
+    await insertCoupon(env.DB, userId, item.name, item.date, item.category, item.quantity);
   }
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
     textMsg(`✅ 已強制存入 ${pending.items.length} 筆`),
@@ -239,6 +288,6 @@ async function handleOcrSaveAll(env: Env, replyToken: string, userId: string): P
     lines.push(`${emoji} ${item.name}`);
   }
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    textMsg(`💾 已存入 ${pending.items.length} 張票券！\n\n${lines.join('\n')}`),
+    textMsg(`💾 已存入 ${pending.items.length} 筆票券！\n\n${lines.join('\n')}`),
   ]);
 }

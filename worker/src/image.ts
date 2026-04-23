@@ -16,6 +16,7 @@ interface OcrItem {
   name: string;
   date: string;
   category: Category;
+  quantity: number;
 }
 
 export async function handleImageOcr(
@@ -60,7 +61,7 @@ export async function handleImageOcr(
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
       {
         type: 'text',
-        text: `🤖 偵測到 ${items.length} 張票券：\n\n${displayLines.join('\n')}`,
+        text: `🤖 偵測到 ${items.length} 筆票券：\n\n${displayLines.join('\n')}`,
         quickReply: { items: qItems.slice(0, MAX_QUICK_REPLY) },
       },
     ]);
@@ -122,12 +123,12 @@ function parseOcrSegment(s: string): OcrItem | null {
     if (isCategory(lastTwo)) {
       const nameDate = parts.slice(0, -2).join(' ');
       const entry = parseEntry(nameDate);
-      if (entry) return { name: entry.name, date: entry.date, category: lastTwo };
+      if (entry) return { name: entry.name, date: entry.date, category: lastTwo, quantity: 1 };
     }
   }
 
   const entry = parseEntry(s);
-  if (entry) return { name: entry.name, date: entry.date, category: DEFAULT_CATEGORY };
+  if (entry) return { name: entry.name, date: entry.date, category: DEFAULT_CATEGORY, quantity: 1 };
   return null;
 }
 

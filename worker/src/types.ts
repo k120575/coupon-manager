@@ -50,6 +50,7 @@ export interface CouponRow {
   expire_date: string;
   category: string;
   status: Status;
+  quantity: number;
   created_at: number;
   used_at: number | null;
 }
@@ -60,8 +61,16 @@ export interface ParsedEntry {
   displayDate: string; // 人類可讀
 }
 
-// pending_actions.payload 的三種型態
+// pending_actions.payload 型態：
+//   quantity   — 等使用者選張數
+//   category   — 已選完張數，等使用者選類別
+//   force_save — 使用者遇到重複、確認幫存，轉入 quantity 步驟
+//   ocr_batch  — OCR 多筆暫存（每筆已有類別與預設張數 1）
 export type PendingPayload =
-  | { kind: 'category'; name: string; date: string }
+  | { kind: 'quantity'; name: string; date: string }
+  | { kind: 'category'; name: string; date: string; quantity: number }
   | { kind: 'force_save'; name: string; date: string }
-  | { kind: 'ocr_batch'; items: Array<{ name: string; date: string; category: Category }> };
+  | {
+      kind: 'ocr_batch';
+      items: Array<{ name: string; date: string; category: Category; quantity: number }>;
+    };

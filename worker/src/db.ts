@@ -54,13 +54,15 @@ export async function insertCoupon(
   name: string,
   date: string,
   category: string,
+  quantity: number = 1,
 ): Promise<number> {
+  const qty = Math.max(1, Math.min(999, Math.floor(quantity)));
   const res = await db
     .prepare(
-      `INSERT INTO coupons (user_id, name, expire_date, category, status)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO coupons (user_id, name, expire_date, category, status, quantity)
+       VALUES (?, ?, ?, ?, ?, ?)`,
     )
-    .bind(userId, name, date, category, STATUS.ACTIVE)
+    .bind(userId, name, date, category, STATUS.ACTIVE, qty)
     .run();
   return Number(res.meta.last_row_id);
 }
@@ -142,14 +144,46 @@ export async function fuzzySearchActive(
 }
 
 /**
- * 更新狀態（use / delete）。透過 id + user_id 雙重驗證，避免跨使用者操作。
- * 回傳被影響的 row（取不到就代表 id/權限/狀態其中之一不對）。
+ * 使用一張券：quantity > 1 就扣一張仍 active，剩最後一張才變 used。
+ * 回傳使用後的狀態（含剩餘張數）；找不到或已用完回 null。
  */
-export async function updateCouponStatus(
+export async function useOneCoupon(
   db: D1Database,
   id: number,
   userId: string,
-  newStatus: 'used' | 'deleted',
+): Promise<{ name: string; remaining: number; isLast: boolean } | null> {
+  const current = await db
+    .prepare(
+      `SELECT * FROM coupons WHERE id = ? AND user_id = ? AND status = 'active' LIMIT 1`,
+    )
+    .bind(id, userId)
+    .first<CouponRow>();
+  if (!current) return null;
+
+  if (current.quantity > 1) {
+    await db
+      .prepare(
+        `UPDATE coupons SET quantity = quantity - 1 WHERE id = ? AND status = 'active' AND quantity > 1`,
+      )
+      .bind(id)
+      .run();
+    return { name: current.name, remaining: current.quantity - 1, isLast: false };
+  }
+
+  await db
+    .prepare(
+      `UPDATE coupons SET status = 'used', used_at = ?, quantity = 0 WHERE id = ? AND status = 'active'`,
+    )
+    .bind(now(), id)
+    .run();
+  return { name: current.name, remaining: 0, isLast: true };
+}
+
+/** 刪除：不管張數，整筆標記為 deleted。 */
+export async function deleteCoupon(
+  db: D1Database,
+  id: number,
+  userId: string,
 ): Promise<CouponRow | null> {
   const current = await db
     .prepare(
@@ -160,12 +194,10 @@ export async function updateCouponStatus(
   if (!current) return null;
 
   await db
-    .prepare(
-      `UPDATE coupons SET status = ?, used_at = ? WHERE id = ? AND status = 'active'`,
-    )
-    .bind(newStatus, newStatus === 'used' ? now() : null, id)
+    .prepare(`UPDATE coupons SET status = 'deleted' WHERE id = ? AND status = 'active'`)
+    .bind(id)
     .run();
-  return { ...current, status: newStatus };
+  return { ...current, status: 'deleted' };
 }
 
 // ---------- 到期通知 ----------
@@ -203,6 +235,19 @@ export async function putPending(
     )
     .bind(userId, payload.kind, JSON.stringify(payload), expires)
     .run();
+}
+
+/** 讀取但不刪除（用於先判斷類型，再決定要不要消耗）。 */
+export async function peekPending(
+  db: D1Database,
+  userId: string,
+): Promise<PendingPayload | null> {
+  const row = await db
+    .prepare(`SELECT payload, expires_at FROM pending_actions WHERE user_id = ?`)
+    .bind(userId)
+    .first<{ payload: string; expires_at: number }>();
+  if (!row || row.expires_at < now()) return null;
+  return JSON.parse(row.payload) as PendingPayload;
 }
 
 export async function takePending(

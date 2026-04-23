@@ -3,7 +3,7 @@ import type { ParsedEntry } from './types.js';
 
 const UNLIMITED_TOKENS = ['永久', '無', '9999/12/31', '9999-12-31'];
 
-/** 解析「名稱 日期」格式。支援 2026/01/01、2026-01-01、2026.01.01。 */
+/** 解析「名稱 日期」格式。支援 2026/01/01、2026-01-01、2026.01.01。張數另外透過互動式訊息詢問。 */
 export function parseEntry(text: string): ParsedEntry | null {
   const t = text.trim();
   const lastSpace = t.lastIndexOf(' ');
