@@ -4,3 +4,7 @@ dist/
 .dev.vars
 *.log
 .DS_Store
+
+# 匯入用 SQL 含使用者資料，不提交
+*.sql
+!migrations/*.sql
