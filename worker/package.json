@@ -11,10 +11,11 @@
     "db:query": "wrangler d1 execute coupon-manager --remote --command",
     "import": "tsx scripts/import-from-csv.ts",
     "richmenu": "tsx scripts/setup-richmenu.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250109.0",
+    "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "wrangler": "^4.84.1"
