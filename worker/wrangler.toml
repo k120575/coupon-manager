@@ -1,0 +1,20 @@
+name = "coupon-manager"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# LINE webhook 每天固定時間發送到期通知（UTC 00:00 = 台灣 08:00）
+[triggers]
+crons = ["0 0 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "coupon-manager"
+database_id = "214883de-64e2-4bbf-b402-3e6a9bc9a4c5"
+
+# 使用 wrangler secret put <KEY> 設定以下敏感值（不要寫死在這）：
+#   LINE_CHANNEL_ACCESS_TOKEN
+#   LINE_CHANNEL_SECRET
+#   GEMINI_API_KEY
+
+[observability]
+enabled = true
