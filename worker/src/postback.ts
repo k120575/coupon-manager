@@ -2,16 +2,22 @@ import { DEFAULT_CATEGORY, isCategory } from './config.js';
 import { buildCouponListMessage } from './coupon-list.js';
 import {
   deleteCoupon,
-  getCouponName,
+  getActiveCouponInfo,
   hasAgreed,
   insertCoupon,
   listCoupons,
+  putPending,
   recordAgreement,
   takePending,
-  useOneCoupon,
+  useCoupon,
 } from './db.js';
 import { lineReply } from './line.js';
-import { qrMessage, qrPostback, textMsg } from './messages.js';
+import {
+  actionQuantityPickerMessage,
+  qrMessage,
+  qrPostback,
+  textMsg,
+} from './messages.js';
 import { parsePostbackParams, toIsoDate } from './parser.js';
 import { askQuantity, transitionToCategory } from './text.js';
 import type { Env } from './env.js';
@@ -41,16 +47,16 @@ export async function handlePostback(
 
   switch (params.action) {
     case 'confirm_use':
-      await confirmAction(env, replyToken, userId, params.id, 'use');
+      await confirmAction(env, replyToken, userId, params.id, params.n, 'use');
       return;
     case 'confirm_delete':
-      await confirmAction(env, replyToken, userId, params.id, 'delete');
+      await confirmAction(env, replyToken, userId, params.id, params.n, 'delete');
       return;
     case 'execute_use':
-      await executeUse(env, replyToken, userId, params.id);
+      await executeUse(env, replyToken, userId, params.id, params.n);
       return;
     case 'execute_delete':
-      await executeDelete(env, replyToken, userId, params.id);
+      await executeDelete(env, replyToken, userId, params.id, params.n);
       return;
     case 'query_cat':
       await queryByCategory(env, replyToken, userId, params);
@@ -76,11 +82,12 @@ export async function handlePostback(
   }
 }
 
-async function confirmAction(
+export async function confirmAction(
   env: Env,
   replyToken: string,
   userId: string,
   idStr: string | undefined,
+  countStr: string | undefined,
   mode: 'use' | 'delete',
 ): Promise<void> {
   const id = Number(idStr);
@@ -88,20 +95,43 @@ async function confirmAction(
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 操作失敗。')]);
     return;
   }
-  const name = await getCouponName(env.DB, id, userId);
+  const info = await getActiveCouponInfo(env.DB, id, userId);
+  if (!info) {
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
+      textMsg('❌ 此票券已被使用、刪除或不屬於您。'),
+    ]);
+    return;
+  }
+
+  // 多張券且還沒選張數 → 先彈張數選擇器，同時寫 pending 讓使用者也能直接輸入數字
+  if (info.quantity > 1 && (countStr === undefined || countStr === '')) {
+    await putPending(env.DB, userId, { kind: 'action_qty', id, mode });
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
+      actionQuantityPickerMessage(id, info.name, info.quantity, mode),
+    ]);
+    return;
+  }
+
+  const count = countStr ? Number(countStr) : 1;
+  if (!Number.isFinite(count) || count < 1 || count > info.quantity) {
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 張數無效。')]);
+    return;
+  }
+
   const verb = mode === 'use' ? '使用' : '刪除';
   const emoji = mode === 'use' ? '🎫' : '🗑️';
   const actionKey = mode === 'use' ? 'execute_use' : 'execute_delete';
   const confirmLabel = mode === 'use' ? '✅ 確定使用' : '🔥 確定刪除';
-  const nameLine = name ? `\n${emoji} ${name}` : '';
+  const countTag = info.quantity > 1 ? ` ${count} 張` : '';
+  const stockLine = info.quantity > 1 ? `\n${emoji} ${info.name}（共 ${info.quantity} 張）` : `\n${emoji} ${info.name}`;
 
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
     {
       type: 'text',
-      text: `❓ 確定要「${verb}」這張票券嗎？${nameLine}`,
+      text: `❓ 確定要「${verb}${countTag}」嗎？${stockLine}`,
       quickReply: {
         items: [
-          qrPostback(confirmLabel, `action=${actionKey}&id=${id}`),
+          qrPostback(confirmLabel, `action=${actionKey}&id=${id}&n=${count}`),
           qrMessage('❌ 取消', '取消'),
         ],
       },
@@ -114,22 +144,24 @@ async function executeUse(
   replyToken: string,
   userId: string,
   idStr: string | undefined,
+  countStr: string | undefined,
 ): Promise<void> {
   const id = Number(idStr);
-  if (!Number.isFinite(id)) {
+  const count = countStr ? Number(countStr) : 1;
+  if (!Number.isFinite(id) || !Number.isFinite(count) || count < 1) {
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 操作失敗。')]);
     return;
   }
-  const result = await useOneCoupon(env.DB, id, userId);
+  const result = await useCoupon(env.DB, id, userId, count);
   if (!result) {
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-      textMsg('❌ 此票券已被使用、刪除或不屬於您。'),
+      textMsg('❌ 此票券已被使用、刪除或張數不足。'),
     ]);
     return;
   }
   const msg = result.isLast
-    ? `✅ 已成功使用：${result.name}`
-    : `✅ 已使用一張：${result.name}\n📦 剩餘 ${result.remaining} 張`;
+    ? `✅ 已成功使用：${result.name}（${result.used} 張）`
+    : `✅ 已使用 ${result.used} 張：${result.name}\n📦 剩餘 ${result.remaining} 張`;
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg(msg)]);
 }
 
@@ -138,23 +170,25 @@ async function executeDelete(
   replyToken: string,
   userId: string,
   idStr: string | undefined,
+  countStr: string | undefined,
 ): Promise<void> {
   const id = Number(idStr);
-  if (!Number.isFinite(id)) {
+  const count = countStr ? Number(countStr) : 1;
+  if (!Number.isFinite(id) || !Number.isFinite(count) || count < 1) {
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 操作失敗。')]);
     return;
   }
-  const deleted = await deleteCoupon(env.DB, id, userId);
-  if (!deleted) {
+  const result = await deleteCoupon(env.DB, id, userId, count);
+  if (!result) {
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-      textMsg('❌ 此票券已被使用、刪除或不屬於您。'),
+      textMsg('❌ 此票券已被使用、刪除或張數不足。'),
     ]);
     return;
   }
-  const qtyTag = deleted.quantity > 1 ? `（${deleted.quantity} 張一併刪除）` : '';
-  await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    textMsg(`✅ 已成功刪除：${deleted.name}${qtyTag}`),
-  ]);
+  const msg = result.isLast
+    ? `✅ 已成功刪除：${result.name}（${result.deleted} 張）`
+    : `✅ 已刪除 ${result.deleted} 張：${result.name}\n📦 剩餘 ${result.remaining} 張`;
+  await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg(msg)]);
 }
 
 async function queryByCategory(

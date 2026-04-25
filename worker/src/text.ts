@@ -22,6 +22,7 @@ import {
   textMsg,
 } from './messages.js';
 import { parseEntry, toIsoDate } from './parser.js';
+import { confirmAction } from './postback.js';
 import type { Env } from './env.js';
 
 export async function handleTextMessage(
@@ -40,6 +41,14 @@ export async function handleTextMessage(
       if (n >= 1 && n <= 999) {
         await takePending(env.DB, userId);
         await transitionToCategory(env, replyToken, userId, pending.name, pending.date, n);
+        return;
+      }
+    }
+    if (pending && pending.kind === 'action_qty') {
+      const n = Number(text);
+      if (n >= 1 && n <= 999) {
+        await takePending(env.DB, userId);
+        await confirmAction(env, replyToken, userId, String(pending.id), String(n), pending.mode);
         return;
       }
     }

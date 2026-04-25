@@ -75,6 +75,29 @@ export function quantityPickerMessage(name: string, displayDate: string): unknow
   };
 }
 
+/** 使用/刪除多張票券時的張數選擇器。 */
+export function actionQuantityPickerMessage(
+  id: number,
+  name: string,
+  available: number,
+  mode: 'use' | 'delete',
+): unknown {
+  const verb = mode === 'use' ? '使用' : '刪除';
+  const action = mode === 'use' ? 'confirm_use' : 'confirm_delete';
+  const presets = [1, 2, 3, 5, 10].filter((n) => n < available);
+  const counts = [...presets, available];
+  const items: unknown[] = counts.map((n) => {
+    const label = n === available ? `全部 ${n} 張` : `${n} 張`;
+    return qrPostback(label, `action=${action}&id=${id}&n=${n}`, `${verb} ${n} 張`);
+  });
+  items.push(qrMessage('❌ 取消', '取消'));
+  return {
+    type: 'text',
+    text: `📦 「${name}」目前有 ${available} 張\n請問要${verb}幾張？（或直接輸入數字）`,
+    quickReply: { items },
+  };
+}
+
 export function categoryPickerMessage(name: string, displayDate: string): unknown {
   const items = [
     ...CATEGORIES.map((cat) =>
@@ -102,7 +125,7 @@ export function helpMessage(): unknown {
       '👉 輸入後會問你「有幾張」→「類別」，按鈕或直接打數字都可以\n\n' +
       '2️⃣  如何使用票券？\n' +
       '點擊下方【✅ 使用票券】，系統會列出清單，或輸入「使用 關鍵字」。\n' +
-      '✨ 多張同名票券每次使用會扣一張，剩 0 張才變已使用\n\n' +
+      '✨ 多張同名票券會先讓你選要使用幾張，剩 0 張才變已使用\n\n' +
       '3️⃣  如何查詢票券？\n' +
       '📋 按狀態查詢（可使用/已過期/已使用）\n' +
       '🏷️ 按類別查詢（餐飲/購物/娛樂...）\n\n' +

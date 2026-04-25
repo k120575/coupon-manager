@@ -66,6 +66,7 @@ export interface ParsedEntry {
 //   category   — 已選完張數，等使用者選類別
 //   force_save — 使用者遇到重複、確認幫存，轉入 quantity 步驟
 //   ocr_batch  — OCR 多筆暫存（每筆已有類別與預設張數 1）
+//   action_qty — 使用/刪除多張券時，等使用者輸入要操作幾張
 export type PendingPayload =
   | { kind: 'quantity'; name: string; date: string }
   | { kind: 'category'; name: string; date: string; quantity: number }
@@ -73,4 +74,5 @@ export type PendingPayload =
   | {
       kind: 'ocr_batch';
       items: Array<{ name: string; date: string; category: Category; quantity: number }>;
-    };
+    }
+  | { kind: 'action_qty'; id: number; mode: 'use' | 'delete' };

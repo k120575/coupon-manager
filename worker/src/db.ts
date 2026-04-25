@@ -143,15 +143,32 @@ export async function fuzzySearchActive(
   return res.results ?? [];
 }
 
-/**
- * 使用一張券：quantity > 1 就扣一張仍 active，剩最後一張才變 used。
- * 回傳使用後的狀態（含剩餘張數）；找不到或已用完回 null。
- */
-export async function useOneCoupon(
+/** 取目前仍 active 的票券摘要，用於決定是否要顯示張數選擇器。 */
+export async function getActiveCouponInfo(
   db: D1Database,
   id: number,
   userId: string,
-): Promise<{ name: string; remaining: number; isLast: boolean } | null> {
+): Promise<{ name: string; quantity: number } | null> {
+  const row = await db
+    .prepare(
+      `SELECT name, quantity FROM coupons
+       WHERE id = ? AND user_id = ? AND status = 'active' LIMIT 1`,
+    )
+    .bind(id, userId)
+    .first<{ name: string; quantity: number }>();
+  return row ?? null;
+}
+
+/**
+ * 使用 N 張券：count < quantity 就扣張數仍 active，count == quantity 才變 used。
+ * count 超過剩餘張數或票券不存在回 null。
+ */
+export async function useCoupon(
+  db: D1Database,
+  id: number,
+  userId: string,
+  count: number,
+): Promise<{ name: string; used: number; remaining: number; isLast: boolean } | null> {
   const current = await db
     .prepare(
       `SELECT * FROM coupons WHERE id = ? AND user_id = ? AND status = 'active' LIMIT 1`,
@@ -159,15 +176,21 @@ export async function useOneCoupon(
     .bind(id, userId)
     .first<CouponRow>();
   if (!current) return null;
+  if (count < 1 || count > current.quantity) return null;
 
-  if (current.quantity > 1) {
+  if (count < current.quantity) {
     await db
       .prepare(
-        `UPDATE coupons SET quantity = quantity - 1 WHERE id = ? AND status = 'active' AND quantity > 1`,
+        `UPDATE coupons SET quantity = quantity - ? WHERE id = ? AND status = 'active' AND quantity >= ?`,
       )
-      .bind(id)
+      .bind(count, id, count)
       .run();
-    return { name: current.name, remaining: current.quantity - 1, isLast: false };
+    return {
+      name: current.name,
+      used: count,
+      remaining: current.quantity - count,
+      isLast: false,
+    };
   }
 
   await db
@@ -176,27 +199,19 @@ export async function useOneCoupon(
     )
     .bind(now(), id)
     .run();
-  return { name: current.name, remaining: 0, isLast: true };
+  return { name: current.name, used: count, remaining: 0, isLast: true };
 }
 
-/** 刪除：不管張數，整筆標記為 deleted。 */
-export async function getCouponName(
-  db: D1Database,
-  id: number,
-  userId: string,
-): Promise<string | null> {
-  const row = await db
-    .prepare(`SELECT name FROM coupons WHERE id = ? AND user_id = ? LIMIT 1`)
-    .bind(id, userId)
-    .first<{ name: string }>();
-  return row?.name ?? null;
-}
-
+/**
+ * 刪除 N 張券：count < quantity 只扣張數，count == quantity 整筆標記為 deleted。
+ * count 超過剩餘張數或票券不存在回 null。
+ */
 export async function deleteCoupon(
   db: D1Database,
   id: number,
   userId: string,
-): Promise<CouponRow | null> {
+  count: number,
+): Promise<{ name: string; deleted: number; remaining: number; isLast: boolean } | null> {
   const current = await db
     .prepare(
       `SELECT * FROM coupons WHERE id = ? AND user_id = ? AND status = 'active' LIMIT 1`,
@@ -204,12 +219,30 @@ export async function deleteCoupon(
     .bind(id, userId)
     .first<CouponRow>();
   if (!current) return null;
+  if (count < 1 || count > current.quantity) return null;
+
+  if (count < current.quantity) {
+    await db
+      .prepare(
+        `UPDATE coupons SET quantity = quantity - ? WHERE id = ? AND status = 'active' AND quantity >= ?`,
+      )
+      .bind(count, id, count)
+      .run();
+    return {
+      name: current.name,
+      deleted: count,
+      remaining: current.quantity - count,
+      isLast: false,
+    };
+  }
 
   await db
-    .prepare(`UPDATE coupons SET status = 'deleted' WHERE id = ? AND status = 'active'`)
+    .prepare(
+      `UPDATE coupons SET status = 'deleted', quantity = 0 WHERE id = ? AND status = 'active'`,
+    )
     .bind(id)
     .run();
-  return { ...current, status: 'deleted' };
+  return { name: current.name, deleted: count, remaining: 0, isLast: true };
 }
 
 // ---------- 到期通知 ----------
