@@ -2,6 +2,7 @@ import { DEFAULT_CATEGORY, isCategory } from './config.js';
 import { buildCouponListMessage } from './coupon-list.js';
 import {
   deleteCoupon,
+  getCouponName,
   hasAgreed,
   insertCoupon,
   listCoupons,
@@ -40,10 +41,10 @@ export async function handlePostback(
 
   switch (params.action) {
     case 'confirm_use':
-      await confirmAction(env, replyToken, params.id, 'use');
+      await confirmAction(env, replyToken, userId, params.id, 'use');
       return;
     case 'confirm_delete':
-      await confirmAction(env, replyToken, params.id, 'delete');
+      await confirmAction(env, replyToken, userId, params.id, 'delete');
       return;
     case 'execute_use':
       await executeUse(env, replyToken, userId, params.id);
@@ -78,6 +79,7 @@ export async function handlePostback(
 async function confirmAction(
   env: Env,
   replyToken: string,
+  userId: string,
   idStr: string | undefined,
   mode: 'use' | 'delete',
 ): Promise<void> {
@@ -86,15 +88,17 @@ async function confirmAction(
     await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg('❌ 操作失敗。')]);
     return;
   }
+  const name = await getCouponName(env.DB, id, userId);
   const verb = mode === 'use' ? '使用' : '刪除';
-  const actionKey = mode === 'use' ? 'execute_use' : 'execute_delete';
   const emoji = mode === 'use' ? '🎫' : '🗑️';
+  const actionKey = mode === 'use' ? 'execute_use' : 'execute_delete';
   const confirmLabel = mode === 'use' ? '✅ 確定使用' : '🔥 確定刪除';
+  const nameLine = name ? `\n${emoji} ${name}` : '';
 
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
     {
       type: 'text',
-      text: `❓ 確定要「${verb}」這張票券嗎？\n${emoji} (票券 #${id})`,
+      text: `❓ 確定要「${verb}」這張票券嗎？${nameLine}`,
       quickReply: {
         items: [
           qrPostback(confirmLabel, `action=${actionKey}&id=${id}`),

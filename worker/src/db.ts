@@ -180,6 +180,18 @@ export async function useOneCoupon(
 }
 
 /** 刪除：不管張數，整筆標記為 deleted。 */
+export async function getCouponName(
+  db: D1Database,
+  id: number,
+  userId: string,
+): Promise<string | null> {
+  const row = await db
+    .prepare(`SELECT name FROM coupons WHERE id = ? AND user_id = ? LIMIT 1`)
+    .bind(id, userId)
+    .first<{ name: string }>();
+  return row?.name ?? null;
+}
+
 export async function deleteCoupon(
   db: D1Database,
   id: number,
