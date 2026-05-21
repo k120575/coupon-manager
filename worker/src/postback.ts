@@ -304,11 +304,10 @@ async function handleOcrSaveSingle(
     return;
   }
   const item = pending.items[idx]!;
-  await insertCoupon(env.DB, userId, item.name, item.date, item.category);
-  const cat = isCategory(item.category) ? item.category : DEFAULT_CATEGORY;
-  await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    textMsg(`💾 已存入：${cat.split(' ')[0]} ${item.name}`),
-  ]);
+  // OCR 不該幫使用者決定張數與類別（張數圖片看不出來、類別只是 Gemini 在猜）。
+  // 走進跟手打一樣的流程：先問張數，再問類別，最後存入。
+  const displayDate = item.date === '9999-12-31' ? '無期限' : item.date;
+  await askQuantity(env, replyToken, userId, item.name, item.date, displayDate);
 }
 
 async function handleOcrSaveAll(env: Env, replyToken: string, userId: string): Promise<void> {
