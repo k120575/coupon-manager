@@ -15,6 +15,7 @@ database_id = "214883de-64e2-4bbf-b402-3e6a9bc9a4c5"
 #   LINE_CHANNEL_ACCESS_TOKEN
 #   LINE_CHANNEL_SECRET
 #   GEMINI_API_KEY
+#   OCR_CLIENT_SECRET    # App 端 OCR 共用密鑰（也要設在 App local.properties 的 coupy.ocrToken）
 
 [observability]
 enabled = true

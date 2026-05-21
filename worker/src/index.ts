@@ -4,6 +4,7 @@ import { handleImageOcr } from './image.js';
 import { lineReply } from './line.js';
 import { consentMessage, textMsg } from './messages.js';
 import { runDailyNotify } from './notify.js';
+import { handleAppOcr } from './ocr-api.js';
 import { handlePostback } from './postback.js';
 import { verifyLineSignature } from './signature.js';
 import { handleTextMessage } from './text.js';
@@ -15,6 +16,11 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/health') {
       return new Response('ok');
+    }
+
+    // App 端 OCR endpoint（跟 LINE webhook 是不同路徑）
+    if (request.method === 'POST' && url.pathname === '/ocr') {
+      return handleAppOcr(request, env);
     }
 
     if (request.method !== 'POST' || url.pathname !== '/webhook') {
