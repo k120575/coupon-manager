@@ -4,6 +4,9 @@ venv/
 /.idea
 /.claude
 /.vscode
+.DS_Store
+Thumbs.db
+*.log
 
 # 本機產生的 rich menu PNG 檔案太大、LINE 不收（只上 JPG）；PNG 只當預覽
 richmenu-*.png
