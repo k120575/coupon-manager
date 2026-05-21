@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    暫用 Vector Launcher Foreground——近似 logo_compare.html 的 B 版本（兩張交疊票券 + 勾勾）。
+    上架前要用 Android Studio 的 Image Asset Studio 從 logo PNG 重新生成正式 launcher icons。
+    Adaptive icon 規格：viewport 108x108dp，主要視覺保持在中間 66x66 內以避免裁切。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Back ticket (珊瑚紅, 略向右傾斜) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="58"
+        android:rotation="8">
+        <path
+            android:fillColor="#FF6B6B"
+            android:pathData="M30,46 L78,46 A4,4 0 0 1 82,50 L82,66 A4,4 0 0 1 78,70 L30,70 A4,4 0 0 1 26,66 L26,50 A4,4 0 0 1 30,46 Z" />
+        <!-- 鋸齒邊（用兩個小圓挖空） -->
+        <path
+            android:fillColor="#0F0F0F"
+            android:pathData="M26,58 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+        <path
+            android:fillColor="#0F0F0F"
+            android:pathData="M82,58 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+    </group>
+
+    <!-- Front ticket (青綠, 略向左傾斜) -->
+    <group
+        android:pivotX="54"
+        android:pivotY="62"
+        android:rotation="-3">
+        <path
+            android:fillColor="#8BB8F7"
+            android:pathData="M26,50 L74,50 A4,4 0 0 1 78,54 L78,70 A4,4 0 0 1 74,74 L26,74 A4,4 0 0 1 22,70 L22,54 A4,4 0 0 1 26,50 Z" />
+        <!-- 鋸齒邊 -->
+        <path
+            android:fillColor="#0F0F0F"
+            android:pathData="M22,62 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+        <path
+            android:fillColor="#0F0F0F"
+            android:pathData="M78,62 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0" />
+        <!-- 勾勾 ✓ -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1"
+            android:pathData="M44,62 L50,68 L62,55 L60,53 L50,64 L46,60 Z" />
+    </group>
+</vector>

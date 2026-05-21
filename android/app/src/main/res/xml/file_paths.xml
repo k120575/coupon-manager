@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 相機拍照暫存目錄（App 私有 cache，使用者看不到，OCR 上傳後就刪除）-->
+    <cache-path
+        name="ocr_images"
+        path="ocr_images/" />
+</paths>

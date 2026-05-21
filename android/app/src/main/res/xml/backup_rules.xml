@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!--
+       v1: 暫不開啟自動雲端備份（使用者透過 App 內手動匯出 JSON / Google Drive 控制）。
+       這個檔案的存在讓 manifest 引用不報錯；之後若要加入 Auto Backup 規則再補。
+    -->
+</full-backup-content>

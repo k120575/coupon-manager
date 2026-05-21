@@ -1,0 +1,35 @@
+# === Android Studio / Gradle build outputs ===
+# 用 **/ 確保 module 子層級的 build 也被排除（app/build 等）
+**/build/
+**/.gradle/
+.kotlin/
+
+# === IDE 設定 ===
+*.iml
+.idea/
+.DS_Store
+Thumbs.db
+
+# === Native build ===
+captures/
+.externalNativeBuild/
+.cxx/
+
+# === 開發者本機設定（不能進 git）===
+local.properties
+
+# === 簽署金鑰（敏感資料）===
+keystore.properties
+*.keystore
+*.jks
+
+# === 發布產出 ===
+*.apk
+*.aab
+*.aar
+release/
+
+# === OS / editor backups ===
+*.bak
+*.swp
+*~
