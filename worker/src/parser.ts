@@ -35,6 +35,23 @@ export function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** 轉成 'yyyy-MM-dd HH:mm:ss'（GMT+8），DB 所有 timestamp 欄位都用這個格式。 */
+export function formatDateTimeTw(d: Date): string {
+  const tw = new Date(d.getTime() + 8 * 60 * 60 * 1000);
+  const y = tw.getUTCFullYear();
+  const M = String(tw.getUTCMonth() + 1).padStart(2, '0');
+  const D = String(tw.getUTCDate()).padStart(2, '0');
+  const h = String(tw.getUTCHours()).padStart(2, '0');
+  const m = String(tw.getUTCMinutes()).padStart(2, '0');
+  const s = String(tw.getUTCSeconds()).padStart(2, '0');
+  return `${y}-${M}-${D} ${h}:${m}:${s}`;
+}
+
+/** 現在時間（UTC+8）字串，可加上 secondsOffset 取得未來/過去時間。 */
+export function nowTwString(secondsOffset: number = 0): string {
+  return formatDateTimeTw(new Date(Date.now() + secondsOffset * 1000));
+}
+
 /** 解析 postback 的 query-string */
 export function parsePostbackParams(data: string): Record<string, string> {
   const params: Record<string, string> = {};

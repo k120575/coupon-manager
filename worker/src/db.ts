@@ -1,7 +1,10 @@
 import { PENDING_TTL_SECONDS, RATE_LIMIT_SECONDS, STATUS } from './config.js';
+import { nowTwString } from './parser.js';
 import type { CouponRow, PendingPayload } from './types.js';
 
-const now = (): number => Math.floor(Date.now() / 1000);
+// 所有 DB timestamp 欄位都用 'yyyy-MM-dd HH:mm:ss'（UTC+8）。
+// 因為格式固定，字典序 = 時間序，可以直接用字串比較。
+const now = (): string => nowTwString();
 
 // ---------- users / 同意 ----------
 
@@ -30,11 +33,11 @@ export async function checkAndBumpRateLimit(
   userId: string,
 ): Promise<boolean> {
   const t = now();
-  const threshold = t - RATE_LIMIT_SECONDS;
+  const threshold = nowTwString(-RATE_LIMIT_SECONDS);
   const row = await db
     .prepare('SELECT last_request_at FROM users WHERE line_user_id = ?')
     .bind(userId)
-    .first<{ last_request_at: number | null }>();
+    .first<{ last_request_at: string | null }>();
 
   if (row?.last_request_at && row.last_request_at > threshold) return true;
 
@@ -268,7 +271,7 @@ export async function putPending(
   userId: string,
   payload: PendingPayload,
 ): Promise<void> {
-  const expires = now() + PENDING_TTL_SECONDS;
+  const expires = nowTwString(PENDING_TTL_SECONDS);
   await db
     .prepare(
       `INSERT INTO pending_actions (user_id, kind, payload, expires_at)
@@ -290,7 +293,7 @@ export async function peekPending(
   const row = await db
     .prepare(`SELECT payload, expires_at FROM pending_actions WHERE user_id = ?`)
     .bind(userId)
-    .first<{ payload: string; expires_at: number }>();
+    .first<{ payload: string; expires_at: string }>();
   if (!row || row.expires_at < now()) return null;
   return JSON.parse(row.payload) as PendingPayload;
 }
@@ -304,7 +307,7 @@ export async function takePending(
       `SELECT payload, expires_at FROM pending_actions WHERE user_id = ?`,
     )
     .bind(userId)
-    .first<{ payload: string; expires_at: number }>();
+    .first<{ payload: string; expires_at: string }>();
   if (!row) return null;
 
   await db

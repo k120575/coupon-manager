@@ -51,8 +51,8 @@ export interface CouponRow {
   category: string;
   status: Status;
   quantity: number;
-  created_at: number;
-  used_at: number | null;
+  created_at: string;
+  used_at: string | null;
 }
 
 export interface ParsedEntry {
