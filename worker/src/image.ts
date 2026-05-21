@@ -87,7 +87,7 @@ async function ocrWithGemini(
 多張用 | 分隔。
 範例：星巴克買一送一 2026/03/15 🍽️ 餐飲 | 全聯折價券 2026/06/30 🛒 購物`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey.trim()}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey.trim()}`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
