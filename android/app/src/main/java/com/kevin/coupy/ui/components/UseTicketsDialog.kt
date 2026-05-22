@@ -11,9 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,13 +57,11 @@ fun UseTicketsDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FilledIconButton(
-                        onClick = { useCount-- },
+                    HoldableIconStep(
+                        onTick = { if (useCount > 1) useCount-- },
                         enabled = useCount > 1,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ) {
                         Icon(imageVector = Icons.Default.Remove, contentDescription = "減少")
                     }
@@ -80,13 +76,11 @@ fun UseTicketsDialog(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    FilledIconButton(
-                        onClick = { useCount++ },
+                    HoldableIconStep(
+                        onTick = { if (useCount < maxQuantity) useCount++ },
                         enabled = useCount < maxQuantity,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = "增加")
                     }

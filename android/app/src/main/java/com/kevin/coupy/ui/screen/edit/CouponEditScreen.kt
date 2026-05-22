@@ -46,11 +46,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -90,6 +88,7 @@ import com.kevin.coupy.data.CouponConstants
 import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.data.isNoExpiration
 import com.kevin.coupy.ui.components.DeleteCouponDialog
+import com.kevin.coupy.ui.components.HoldableIconStep
 import com.kevin.coupy.ui.components.UseTicketsDialog
 import java.io.File
 import kotlinx.coroutines.launch
@@ -740,13 +739,11 @@ private fun QuantityField(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledIconButton(
-                    onClick = { onValueChange(value - 1) },
+                HoldableIconStep(
+                    onTick = { if (value > 1) onValueChange(value - 1) },
                     enabled = value > 1,
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ) {
                     Icon(imageVector = Icons.Default.Remove, contentDescription = "減少")
                 }
@@ -790,13 +787,13 @@ private fun QuantityField(
                     )
                 }
 
-                FilledIconButton(
-                    onClick = { onValueChange(value + 1) },
+                HoldableIconStep(
+                    onTick = {
+                        if (value < CouponEditViewModel.MAX_QUANTITY) onValueChange(value + 1)
+                    },
                     enabled = value < CouponEditViewModel.MAX_QUANTITY,
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(imageVector = Icons.Default.Add, contentDescription = "增加")
                 }

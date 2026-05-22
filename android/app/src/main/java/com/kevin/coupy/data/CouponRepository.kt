@@ -1,7 +1,10 @@
 package com.kevin.coupy.data
 
+import com.kevin.coupy.data.dao.CategoryTicketCount
 import com.kevin.coupy.data.dao.CouponDao
+import com.kevin.coupy.data.dao.UsageEventDao
 import com.kevin.coupy.data.entity.CouponEntity
+import com.kevin.coupy.data.entity.UsageEventEntity
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import javax.inject.Inject
@@ -15,7 +18,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class CouponRepository @Inject constructor(
-    private val dao: CouponDao
+    private val dao: CouponDao,
+    private val usageEventDao: UsageEventDao
 ) {
 
     // ===== 查詢 =====
@@ -29,6 +33,27 @@ class CouponRepository @Inject constructor(
             today = today.toString(),
             sevenDaysLater = today.plusDays(7).toString()
         )
+
+    // ===== 統計頁 =====
+
+    fun observeActiveTicketCount(): Flow<Int> = dao.observeActiveTicketCount()
+
+    // 統計改查 usage_events 表才能正確算分次使用
+    fun observeUsedTicketsAllTime(): Flow<Int> = usageEventDao.observeUsageAllTime()
+
+    fun observeUsedTicketsInRange(startMillis: Long, endMillis: Long): Flow<Int> =
+        usageEventDao.observeUsageInRange(startMillis, endMillis)
+
+    fun observeExpiringTicketCount(today: java.time.LocalDate, daysAhead: Long): Flow<Int> =
+        dao.observeExpiringTicketCount(
+            today = today.toString(),
+            endDate = today.plusDays(daysAhead).toString()
+        )
+
+    fun observeForeverTicketCount(): Flow<Int> = dao.observeForeverTicketCount()
+
+    fun observeCategoryDistribution(): Flow<List<CategoryTicketCount>> =
+        dao.observeCategoryDistribution()
 
     // ===== 寫入 =====
 
@@ -47,9 +72,13 @@ class CouponRepository @Inject constructor(
         val coupon = dao.getById(id) ?: return false
         if (count > coupon.quantity) return false
 
+        val now = Instant.now()
+        // 寫事件——讓統計頁能正確算「本月使用」
+        usageEventDao.insert(UsageEventEntity(couponId = id, count = count, usedAt = now))
+
         if (count >= coupon.quantity) {
             // 用完了 → 標記為 used
-            dao.markAsUsed(id, Instant.now())
+            dao.markAsUsed(id, now)
         } else {
             // 還有剩 → 只更新張數
             dao.updateQuantity(id, coupon.quantity - count)

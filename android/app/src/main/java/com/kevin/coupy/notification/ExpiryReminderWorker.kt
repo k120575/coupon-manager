@@ -91,7 +91,7 @@ class ExpiryReminderWorker @AssistedInject constructor(
             context,
             NotificationChannels.CHANNEL_EXPIRY_REMINDER
         )
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification_ticket)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))

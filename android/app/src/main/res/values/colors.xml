@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 給 launcher icon 用的背景色 -->
-    <color name="ic_launcher_background">#0F0F0F</color>
+    <!-- ic_launcher_background 已搬到 ic_launcher_background.xml（由 Image Asset Studio 管理）。
+         未來新增的 App 色票放這裡。 -->
 </resources>

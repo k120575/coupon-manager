@@ -41,7 +41,9 @@ class HomeViewModel @Inject constructor(
         HomeUiState(
             totalTicketCount = coupons.sumOf { it.quantity },
             distinctCategoryCount = coupons.map { it.category }.distinct().size,
-            // 非重疊分桶：每張票券落在唯一一個區間
+            // 非重疊分桶：每張票券落在唯一一個區間。
+            // UI 標籤用「3 天內 / 7 天內 / 30 天內」是因為這是使用者最直覺的講法，
+            // 即使對應的實際區間是 0-3 / 4-7 / 8-30。
             expiringIn3Count = daysMap.filterByDays(0L..3L),
             expiringIn7Count = daysMap.filterByDays(4L..7L),
             expiringIn30Count = daysMap.filterByDays(8L..30L),

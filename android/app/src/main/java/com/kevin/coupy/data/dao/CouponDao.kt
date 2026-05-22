@@ -16,6 +16,9 @@ interface CouponDao {
     @Insert
     suspend fun insert(coupon: CouponEntity): Long
 
+    @Insert
+    suspend fun insertAll(coupons: List<CouponEntity>): List<Long>
+
     @Update
     suspend fun update(coupon: CouponEntity)
 
@@ -33,6 +36,25 @@ interface CouponDao {
     @Query("SELECT COUNT(*) FROM coupons WHERE status != 'deleted'")
     suspend fun countAll(): Int
 
+    /** 備份匯出用：所有未刪除的票券（active + used）*/
+    @Query("SELECT * FROM coupons WHERE status != 'deleted' ORDER BY id ASC")
+    suspend fun getAllForBackup(): List<CouponEntity>
+
+    /**
+     * 匯入去重檢查：以 name + expire_date + category 為自然鍵。
+     * 同樣三欄組合視為同一張票券，避免重覆匯入。
+     */
+    @Query(
+        """
+        SELECT COUNT(*) FROM coupons
+        WHERE name = :name
+          AND expire_date = :expireDate
+          AND category = :category
+          AND status != 'deleted'
+        """
+    )
+    suspend fun countMatching(name: String, expireDate: String, category: String): Int
+
     /** 7 天內到期的 active 票券（供 widget / 提醒用）*/
     @Query(
         """
@@ -43,6 +65,65 @@ interface CouponDao {
         """
     )
     fun observeExpiringSoon(today: String, sevenDaysLater: String): Flow<List<CouponEntity>>
+
+    // ===== 統計頁專用查詢 =====
+    // 注意：所有「張數」都是 SUM(quantity)，因為一筆 coupon 可能對應 N 張票。
+
+    /** 目前持有的總張數（active 票券 SUM(quantity)）*/
+    @Query("SELECT COALESCE(SUM(quantity), 0) FROM coupons WHERE status = 'active'")
+    fun observeActiveTicketCount(): Flow<Int>
+
+    /**
+     * 本月用完的張數。
+     *
+     * 注意 used_at 是 epoch millis（Converters 設定），傳入區間用 Long。
+     * 採近似法：只算「用完最後幾張」當下的張數，部分使用不會計入。
+     */
+    @Query(
+        """
+        SELECT COALESCE(SUM(quantity), 0) FROM coupons
+        WHERE status = 'used'
+          AND used_at >= :startMillis
+          AND used_at < :endMillis
+        """
+    )
+    fun observeUsedTicketsInRange(startMillis: Long, endMillis: Long): Flow<Int>
+
+    /** 累計用完總張數（歷史所有 used）*/
+    @Query("SELECT COALESCE(SUM(quantity), 0) FROM coupons WHERE status = 'used'")
+    fun observeUsedTicketsAllTime(): Flow<Int>
+
+    /** N 天內到期的總張數（排除無期限的 9999-12-31）*/
+    @Query(
+        """
+        SELECT COALESCE(SUM(quantity), 0) FROM coupons
+        WHERE status = 'active'
+          AND expire_date BETWEEN :today AND :endDate
+          AND expire_date < '9999-12-31'
+        """
+    )
+    fun observeExpiringTicketCount(today: String, endDate: String): Flow<Int>
+
+    /** 無期限票券總張數（9999-12-31 sentinel）*/
+    @Query(
+        """
+        SELECT COALESCE(SUM(quantity), 0) FROM coupons
+        WHERE status = 'active'
+          AND expire_date = '9999-12-31'
+        """
+    )
+    fun observeForeverTicketCount(): Flow<Int>
+
+    /** 分類分佈：active 票券按 category 分組，回傳各分類總張數 */
+    @Query(
+        """
+        SELECT category, SUM(quantity) AS total FROM coupons
+        WHERE status = 'active'
+        GROUP BY category
+        ORDER BY total DESC
+        """
+    )
+    fun observeCategoryDistribution(): Flow<List<CategoryTicketCount>>
 
     // ===== 狀態變更 =====
 

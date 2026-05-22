@@ -93,7 +93,7 @@ fun ProIntroScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "你的點擊會記錄在本機，不會傳給任何人。Pro 上線時會在 App 內通知你。",
+                text = "Pro 推出時會在 App 內通知你。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -224,7 +224,7 @@ private fun NotifyMeButton(
                     )
                     Spacer(modifier = Modifier.size(8.dp))
                     Text(
-                        text = "已登記，上線時通知你",
+                        text = "已登記，推出時通知你",
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.bodyLarge
@@ -264,7 +264,7 @@ private fun NotifyMeButton(
             )
             Spacer(modifier = Modifier.size(8.dp))
             Text(
-                text = "通知我上線",
+                text = "Pro 推出時通知我",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

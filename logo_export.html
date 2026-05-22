@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>券管家 Coupy - Logo 匯出（B 深色雙主色）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #F0F0F2;
+    font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    color: #333;
+    padding: 32px 20px 80px;
+    line-height: 1.6;
+  }
+  .container { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 6px; font-weight: 700; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 28px; }
+
+  .variant-picker {
+    display: flex; gap: 10px; margin-bottom: 24px;
+    background: white; padding: 12px 16px; border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    align-items: center; flex-wrap: wrap;
+  }
+  .variant-picker label { cursor: pointer; font-size: 14px; padding: 6px 14px; border-radius: 8px; transition: 0.15s; }
+  .variant-picker input { display: none; }
+  .variant-picker input:checked + span { background: #4A89DC; color: white; font-weight: 600; }
+  .variant-picker span { padding: 6px 14px; border-radius: 8px; display: inline-block; }
+
+  .preview-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px; margin-bottom: 32px;
+  }
+  .preview-card {
+    background: white; border-radius: 14px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .preview-card h3 { font-size: 14px; font-weight: 600; margin: 0; }
+  .preview-card .hint { font-size: 11px; color: #999; text-align: center; min-height: 28px; }
+  .preview-card canvas {
+    width: 160px; height: 160px;
+    /* show transparent for foreground via checkerboard */
+  }
+  .preview-card.transparent canvas {
+    background-image:
+      linear-gradient(45deg, #e8e8e8 25%, transparent 25%),
+      linear-gradient(-45deg, #e8e8e8 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e8e8e8 75%),
+      linear-gradient(-45deg, transparent 75%, #e8e8e8 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+  .preview-card button {
+    background: #4A89DC; color: white; border: none;
+    padding: 8px 16px; border-radius: 8px; font-size: 13px;
+    cursor: pointer; font-weight: 600; width: 100%;
+    transition: 0.15s;
+  }
+  .preview-card button:hover { background: #3B78CB; }
+
+  .size-row {
+    display: flex; gap: 32px; align-items: flex-end; justify-content: center;
+    background: white; border-radius: 14px; padding: 24px; margin-bottom: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .size-row .size-block { text-align: center; }
+  .size-row canvas { display: block; margin: 0 auto 8px; }
+  .size-row .size-label { font-size: 12px; color: #888; }
+
+  .guide {
+    background: white; border-radius: 14px; padding: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .guide h2 { font-size: 18px; margin-bottom: 16px; }
+  .guide ol { margin-left: 24px; }
+  .guide li { margin-bottom: 8px; font-size: 14px; }
+  .guide code {
+    background: #F0F0F2; padding: 2px 8px; border-radius: 4px;
+    font-family: Consolas, monospace; font-size: 13px;
+  }
+  .guide .step-block { margin-bottom: 24px; padding: 16px; background: #FAFAFA; border-radius: 10px; border-left: 4px solid #4A89DC; }
+  .guide .step-block h3 { font-size: 15px; margin-bottom: 8px; color: #4A89DC; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>券管家 Coupy - Logo 匯出</h1>
+  <p class="subtitle">B 版本（深色雙主色）。點下方按鈕下載 PNG，再跟著步驟塞進 Android Studio。</p>
+
+  <div class="variant-picker">
+    <span style="margin-right: 8px; font-size: 14px; font-weight: 600;">前票券顏色：</span>
+    <label><input type="radio" name="variant" value="cyan" checked><span>青綠 #4ECDC4（原 B 版）</span></label>
+    <label><input type="radio" name="variant" value="blue"><span>品牌藍 #4A89DC（跟 App 主色一致）</span></label>
+  </div>
+
+  <h2 style="font-size: 16px; margin-bottom: 12px;">尺寸即時預覽（48px / 96px / 192px）</h2>
+  <div class="size-row">
+    <div class="size-block">
+      <canvas id="preview48" width="48" height="48"></canvas>
+      <div class="size-label">48px<br>(Play 商店列表)</div>
+    </div>
+    <div class="size-block">
+      <canvas id="preview96" width="96" height="96"></canvas>
+      <div class="size-label">96px<br>(通知列)</div>
+    </div>
+    <div class="size-block">
+      <canvas id="preview192" width="192" height="192"></canvas>
+      <div class="size-label">192px<br>(手機桌面)</div>
+    </div>
+  </div>
+
+  <h2 style="font-size: 16px; margin-bottom: 12px;">下載</h2>
+  <div class="preview-row">
+    <div class="preview-card transparent">
+      <h3>Foreground (透明背景)</h3>
+      <canvas id="fgCanvas" width="432" height="432"></canvas>
+      <p class="hint">432×432 PNG 含透明背景<br>Android Studio Image Asset 用</p>
+      <button onclick="download('fgCanvas', 'coupy_foreground_432.png')">下載 Foreground PNG</button>
+    </div>
+    <div class="preview-card">
+      <h3>Play Store Icon</h3>
+      <canvas id="storeCanvas" width="512" height="512"></canvas>
+      <p class="hint">512×512 PNG 含背景<br>Play Console 商店列表用</p>
+      <button onclick="download('storeCanvas', 'coupy_play_store_512.png')">下載 Play Store PNG</button>
+    </div>
+    <div class="preview-card">
+      <h3>高解析完整版</h3>
+      <canvas id="hiresCanvas" width="1024" height="1024"></canvas>
+      <p class="hint">1024×1024 PNG 含背景<br>備用 / 行銷素材</p>
+      <button onclick="download('hiresCanvas', 'coupy_hires_1024.png')">下載 1024 PNG</button>
+    </div>
+  </div>
+
+  <div class="guide">
+    <h2>Android Studio 操作步驟</h2>
+
+    <div class="step-block">
+      <h3>步驟 1：下載 Foreground PNG</h3>
+      <p>上面點「下載 Foreground PNG」，存到桌面，得到 <code>coupy_foreground_432.png</code>。</p>
+    </div>
+
+    <div class="step-block">
+      <h3>步驟 2：開 Image Asset Studio</h3>
+      <ol>
+        <li>Android Studio 左側 Project 視窗，右鍵點 <code>app/src/main/res</code></li>
+        <li>選 <code>New → Image Asset</code></li>
+        <li>Icon Type 選 <code>Launcher Icons (Adaptive and Legacy)</code></li>
+      </ol>
+    </div>
+
+    <div class="step-block">
+      <h3>步驟 3：Foreground Layer 設定</h3>
+      <ol>
+        <li>Layer 切到 <code>Foreground Layer</code></li>
+        <li>Source Asset 選 <code>Image</code></li>
+        <li>Path 選剛剛下載的 <code>coupy_foreground_432.png</code></li>
+        <li>Trim 不勾、Resize 留 100%（圖已經做好邊距）</li>
+      </ol>
+    </div>
+
+    <div class="step-block">
+      <h3>步驟 4：Background Layer 設定</h3>
+      <ol>
+        <li>Layer 切到 <code>Background Layer</code></li>
+        <li>Asset Type 選 <code>Color</code></li>
+        <li>顏色填 <code>#0F0F0F</code></li>
+      </ol>
+    </div>
+
+    <div class="step-block">
+      <h3>步驟 5：產出</h3>
+      <ol>
+        <li>下方 Output Directory 確認指向 <code>app/src/main/res</code></li>
+        <li>按 <code>Next → Finish</code>（會問要不要覆蓋，按 OK）</li>
+        <li>它會自動產出 5 個 density 的 webp + adaptive icon xml</li>
+      </ol>
+    </div>
+
+    <div class="step-block">
+      <h3>步驟 6：刪掉舊的暫用版本</h3>
+      <p>之前手刻的 vector drawable 可以刪了：</p>
+      <ol>
+        <li>刪 <code>app/src/main/res/drawable/ic_launcher_foreground.xml</code>（如果 Image Asset 沒自動覆蓋）</li>
+        <li>確認 <code>mipmap-anydpi-v26/ic_launcher.xml</code> 用新生成的版本</li>
+      </ol>
+    </div>
+
+    <div class="step-block">
+      <h3>步驟 7：Play Store 上架素材</h3>
+      <p>上面下載 <code>coupy_play_store_512.png</code>，上架時上傳到 Play Console 的 App icon 欄位（不放專案內、不進 git）。</p>
+    </div>
+
+    <div class="step-block">
+      <h3>步驟 8：跑一次 App 確認</h3>
+      <p>Run 一次，看桌面 icon、最近 App 列表的圖示有換成新的。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+let frontColor = '#4ECDC4';
+const backColor = '#FF6B6B';
+const bgColor = '#0F0F0F';
+const whiteColor = '#FFFFFF';
+
+document.querySelectorAll('input[name="variant"]').forEach(input => {
+  input.addEventListener('change', e => {
+    frontColor = e.target.value === 'blue' ? '#4A89DC' : '#4ECDC4';
+    renderAll();
+  });
+});
+
+function roundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawLogo(ctx, size, opts) {
+  // opts.bg: 'transparent' | 'dark'
+  // opts.padding: extra padding factor (0 = full bleed, 0.1 = 10% padding each side)
+  const padding = opts.padding || 0;
+  const drawSize = size * (1 - padding * 2);
+  const offsetXY = size * padding;
+  const s = drawSize / 108; // scale from 108 viewport
+
+  ctx.clearRect(0, 0, size, size);
+
+  if (opts.bg === 'dark') {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, size, size);
+  }
+
+  ctx.save();
+  ctx.translate(offsetXY, offsetXY);
+
+  // Back ticket (rotate 8deg around 54,58)
+  ctx.save();
+  ctx.translate(54 * s, 58 * s);
+  ctx.rotate(8 * Math.PI / 180);
+  ctx.translate(-54 * s, -58 * s);
+  ctx.fillStyle = backColor;
+  roundedRect(ctx, 26 * s, 46 * s, 56 * s, 24 * s, 4 * s);
+  ctx.fill();
+  // Notches (erase or fill with bg)
+  if (opts.bg === 'transparent') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath(); ctx.arc(26 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(82 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.beginPath(); ctx.arc(26 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(82 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+
+  // Front ticket (rotate -3deg around 54,62)
+  ctx.save();
+  ctx.translate(54 * s, 62 * s);
+  ctx.rotate(-3 * Math.PI / 180);
+  ctx.translate(-54 * s, -62 * s);
+  ctx.fillStyle = frontColor;
+  roundedRect(ctx, 22 * s, 50 * s, 56 * s, 24 * s, 4 * s);
+  ctx.fill();
+  // Notches
+  if (opts.bg === 'transparent') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath(); ctx.arc(22 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(78 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.beginPath(); ctx.arc(22 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(78 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  }
+  // Check mark ✓
+  ctx.strokeStyle = whiteColor;
+  ctx.fillStyle = whiteColor;
+  ctx.lineWidth = 3 * s;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(44 * s, 62 * s);
+  ctx.lineTo(50 * s, 68 * s);
+  ctx.lineTo(62 * s, 55 * s);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function renderAll() {
+  // Foreground (transparent). Original 108-viewport design already insets tickets to ~55% of canvas,
+  // which fits adaptive icon safe zone (66/108 ≈ 61%) without further padding.
+  drawLogo(document.getElementById('fgCanvas').getContext('2d'), 432, { bg: 'transparent', padding: 0 });
+  drawLogo(document.getElementById('storeCanvas').getContext('2d'), 512, { bg: 'dark' });
+  drawLogo(document.getElementById('hiresCanvas').getContext('2d'), 1024, { bg: 'dark' });
+  // Size previews (always with dark bg to mimic real Play Store look)
+  drawLogo(document.getElementById('preview48').getContext('2d'), 48, { bg: 'dark' });
+  drawLogo(document.getElementById('preview96').getContext('2d'), 96, { bg: 'dark' });
+  drawLogo(document.getElementById('preview192').getContext('2d'), 192, { bg: 'dark' });
+}
+
+function download(canvasId, filename) {
+  const canvas = document.getElementById(canvasId);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+renderAll();
+</script>
+</body>
+</html>

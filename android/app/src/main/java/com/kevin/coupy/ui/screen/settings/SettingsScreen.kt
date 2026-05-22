@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onCategoryManagementClick: () -> Unit,
+    onBackupClick: () -> Unit,
     onAboutClick: () -> Unit
 ) {
     Scaffold(
@@ -91,8 +92,8 @@ fun SettingsScreen(
                     SettingsRow(
                         icon = Icons.Outlined.Backup,
                         title = "資料備份",
-                        subtitle = "即將推出（Pro 自動同步 + 免費手動匯出 / Drive）",
-                        enabled = false
+                        subtitle = "備份與還原票券資料",
+                        onClick = onBackupClick
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),

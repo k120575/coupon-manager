@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.kevin.coupy.data.AppDatabase
 import com.kevin.coupy.data.dao.CouponDao
+import com.kevin.coupy.data.dao.UsageEventDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,11 +27,14 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DB_NAME
         )
-            // v1.0 沒有 migration，schema 變動先用 destructive fallback
-            // 上架前移除這行、改用正式 migration
+            .addMigrations(AppDatabase.MIGRATION_1_2)
+            // 開發階段保留 destructive fallback 當保險絲；上架前移除這行
             .fallbackToDestructiveMigration()
             .build()
 
     @Provides
     fun provideCouponDao(database: AppDatabase): CouponDao = database.couponDao()
+
+    @Provides
+    fun provideUsageEventDao(database: AppDatabase): UsageEventDao = database.usageEventDao()
 }

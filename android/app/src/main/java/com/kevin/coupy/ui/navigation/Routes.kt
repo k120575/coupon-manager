@@ -34,6 +34,7 @@ object Routes {
 
     const val SETTINGS = "settings"
     const val CATEGORY_MANAGEMENT = "category_management"
+    const val BACKUP = "backup"
     const val ABOUT = "about"
     const val PRO_INTRO = "pro_intro"
 }

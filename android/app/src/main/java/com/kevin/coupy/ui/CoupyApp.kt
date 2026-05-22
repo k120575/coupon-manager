@@ -21,6 +21,7 @@ import com.kevin.coupy.ui.screen.edit.CouponEditScreen
 import com.kevin.coupy.ui.screen.home.HomeScreen
 import com.kevin.coupy.ui.screen.list.CouponListScreen
 import com.kevin.coupy.ui.screen.mine.MineScreen
+import com.kevin.coupy.ui.screen.backup.BackupScreen
 import com.kevin.coupy.ui.screen.pro.ProIntroScreen
 import com.kevin.coupy.ui.screen.settings.AboutScreen
 import com.kevin.coupy.ui.screen.settings.CategoryManagementScreen
@@ -139,12 +140,19 @@ fun CoupyApp() {
                 SettingsScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onCategoryManagementClick = { navController.navigate(Routes.CATEGORY_MANAGEMENT) },
+                    onBackupClick = { navController.navigate(Routes.BACKUP) },
                     onAboutClick = { navController.navigate(Routes.ABOUT) }
                 )
             }
 
             composable(Routes.CATEGORY_MANAGEMENT) {
                 CategoryManagementScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Routes.BACKUP) {
+                BackupScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

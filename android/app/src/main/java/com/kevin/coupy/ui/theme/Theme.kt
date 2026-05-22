@@ -7,7 +7,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -80,12 +79,13 @@ fun CoupyTheme(
 ) {
     val colorScheme = if (darkTheme) CoupyDarkColors else CoupyLightColors
 
-    // 同步 status bar 圖示顏色（淺底用深色 icon、深底用淺色 icon）
+    // 同步 status bar 圖示顏色（淺底用深色 icon、深底用淺色 icon）。
+    // status bar 背景由 MainActivity 的 enableEdgeToEdge() 處理（API 35+ 強制 edge-to-edge），
+    // 這裡只需要告訴系統 icon 用淺色還是深色。
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

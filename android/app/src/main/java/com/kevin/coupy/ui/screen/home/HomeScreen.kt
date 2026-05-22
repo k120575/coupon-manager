@@ -200,7 +200,7 @@ private fun ExpiringGrid(uiState: HomeUiState, onCardClick: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             StatMiniCard(
-                title = "4-7 天",
+                title = "7 天內",
                 count = uiState.expiringIn7Count,
                 highlight = false,
                 onClick = onCardClick,
@@ -209,7 +209,7 @@ private fun ExpiringGrid(uiState: HomeUiState, onCardClick: () -> Unit) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatMiniCard(
-                title = "8-30 天",
+                title = "30 天內",
                 count = uiState.expiringIn30Count,
                 highlight = false,
                 onClick = onCardClick,
