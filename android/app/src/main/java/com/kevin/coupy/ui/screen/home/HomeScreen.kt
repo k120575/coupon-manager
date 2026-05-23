@@ -298,7 +298,7 @@ private fun ExpiringListHeader() {
             modifier = Modifier
                 .weight(1f)
                 .height(1.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                .background(MaterialTheme.colorScheme.outlineVariant)
         )
     }
 }

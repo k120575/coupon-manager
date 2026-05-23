@@ -20,7 +20,7 @@ import com.kevin.coupy.data.entity.UsageEventEntity
  */
 @Database(
     entities = [CouponEntity::class, UsageEventEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -57,6 +57,19 @@ abstract class AppDatabase : RoomDatabase() {
                     WHERE status = 'used' AND used_at IS NOT NULL
                     """.trimIndent()
                 )
+            }
+        }
+
+        /**
+         * v2 → v3：coupons 加 type（實體/數位）+ note 欄位。
+         *
+         * 既有資料 type 預設 'physical'（多數歷史資料是手動建檔的紙本券）；
+         * note 留 NULL（沒備註資料可遷移）。
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE coupons ADD COLUMN type TEXT NOT NULL DEFAULT 'physical'")
+                db.execSQL("ALTER TABLE coupons ADD COLUMN note TEXT")
             }
         }
     }

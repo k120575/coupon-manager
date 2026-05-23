@@ -85,7 +85,7 @@ fun CouponActionsBottomSheet(
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             ActionRow(
                 icon = Icons.Default.Check,

@@ -53,6 +53,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -85,6 +88,7 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevin.coupy.data.CouponConstants
+import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.data.isNoExpiration
 import com.kevin.coupy.ui.components.DeleteCouponDialog
@@ -249,6 +253,11 @@ fun CouponEditScreen(
                 onValueChange = viewModel::onNameChange
             )
 
+            TypeField(
+                value = formState.type,
+                onValueChange = viewModel::onTypeChange
+            )
+
             ExpireDateField(
                 value = formState.expireDate,
                 onValueChange = viewModel::onExpireDateChange
@@ -265,9 +274,14 @@ fun CouponEditScreen(
                 onValueChange = viewModel::onQuantityChange
             )
 
+            NoteField(
+                value = formState.note,
+                onValueChange = viewModel::onNoteChange
+            )
+
             if (viewModel.isEditMode) {
                 Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
@@ -799,6 +813,65 @@ private fun QuantityField(
                 }
             }
         }
+    }
+}
+
+// ===== Type =====
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TypeField(
+    value: CouponType,
+    onValueChange: (CouponType) -> Unit
+) {
+    val options = listOf(CouponType.PHYSICAL, CouponType.DIGITAL)
+    Column {
+        FieldLabel("票券類型")
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            options.forEachIndexed { index, type ->
+                SegmentedButton(
+                    selected = type == value,
+                    onClick = { onValueChange(type) },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size)
+                ) {
+                    Text(type.displayName)
+                }
+            }
+        }
+    }
+}
+
+// ===== Note =====
+
+@Composable
+private fun NoteField(
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    Column {
+        FieldLabel("備註（選填）")
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = {
+                Text(
+                    text = "例如：周一不可用、出示會員卡、限午餐時段",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            minLines = 3,
+            maxLines = 5,
+            supportingText = {
+                Text(
+                    text = "${value.length} / ${CouponEditViewModel.MAX_NOTE_LENGTH}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        )
     }
 }
 

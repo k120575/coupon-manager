@@ -87,7 +87,7 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Backup,
@@ -97,7 +97,7 @@ fun SettingsScreen(
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Info,

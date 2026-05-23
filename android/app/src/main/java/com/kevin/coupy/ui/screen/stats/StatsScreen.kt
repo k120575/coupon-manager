@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.coupy.data.stats.ArchetypeState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +86,9 @@ private fun StatsContent(uiState: StatsUiState, scaffoldPadding: PaddingValues) 
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item { OverviewCard(uiState) }
+        uiState.archetypeState?.let { state ->
+            item { ArchetypeCard(state) }
+        }
         item { ExpiryCard(uiState) }
         if (uiState.categoryBars.isNotEmpty()) {
             item { CategoryDistributionCard(uiState.categoryBars) }
@@ -102,6 +106,45 @@ private fun OverviewCard(uiState: StatsUiState) {
             StatPill(label = "持有", value = uiState.activeCount, unit = "張")
             StatPill(label = "本月使用", value = uiState.usedThisMonthCount, unit = "張")
             StatPill(label = "累計使用", value = uiState.usedAllTimeCount, unit = "張")
+        }
+    }
+}
+
+@Composable
+private fun ArchetypeCard(state: ArchetypeState) {
+    SectionCard(title = "你的票券人格") {
+        when (state) {
+            is ArchetypeState.NotEnoughData -> {
+                Text(
+                    text = "再用 ${state.required - state.currentUsed} 張就能解鎖你的票券人格",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            is ArchetypeState.Identified -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = state.archetype.emoji,
+                        fontSize = 36.sp
+                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Column {
+                        Text(
+                            text = state.archetype.displayName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "過去 ${state.totalUsed} 張使用紀錄，" +
+                                    state.archetype.describe(state.concentrationPercent),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
     }
 }

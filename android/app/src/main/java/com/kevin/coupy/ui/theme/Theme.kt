@@ -42,7 +42,8 @@ private val CoupyDarkColors = darkColorScheme(
     error = CoupyError,
     onError = CoupyOnDark,
 
-    outline = CoupyDarkOutline
+    outline = CoupyDarkOutline,
+    outlineVariant = CoupyDarkOutlineVariant
 )
 
 private val CoupyLightColors = lightColorScheme(
@@ -69,7 +70,8 @@ private val CoupyLightColors = lightColorScheme(
     error = CoupyError,
     onError = CoupyOnDark,
 
-    outline = CoupyLightOutline
+    outline = CoupyLightOutline,
+    outlineVariant = CoupyLightOutlineVariant
 )
 
 @Composable

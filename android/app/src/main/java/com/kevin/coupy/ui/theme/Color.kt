@@ -40,5 +40,9 @@ val CoupyError = Color(0xFFE63946)
 val CoupyWarning = Color(0xFFF4A261)
 
 // === 邊框 / 分隔線 ===
-val CoupyDarkOutline = Color(0xFF333333)
+// outline 用在 OutlinedTextField / Surface 邊框等需要實際可見的線
+val CoupyDarkOutline = Color(0xFF4A4A4A)        // 從 0xFF333333 提亮——原本在深底幾乎隱形
 val CoupyLightOutline = Color(0xFFE0E0E0)
+// outlineVariant 用在 HorizontalDivider 等期待「淡淡可見」的分隔線
+val CoupyDarkOutlineVariant = Color(0xFF383838) // 比 surface 0xFF1A1A1A 亮一階，肉眼可辨
+val CoupyLightOutlineVariant = Color(0xFFECECEC)

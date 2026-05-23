@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.ui.theme.CoupyCoral
 import com.kevin.coupy.ui.theme.CoupyTheme
 import com.kevin.coupy.ui.util.formatExpireDate
@@ -91,7 +93,7 @@ fun CouponCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // 名稱 + 分類
+                // 名稱 + 類型 badge + 分類
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.name,
@@ -102,12 +104,16 @@ fun CouponCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = item.categoryDisplayName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TypeBadge(type = item.type)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = item.categoryDisplayName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -153,6 +159,22 @@ fun CouponCard(
 }
 
 @Composable
+private fun TypeBadge(type: CouponType) {
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = Color.Transparent,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Text(
+            text = type.displayName,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 private fun QuantityBadge(quantity: Int) {
     Surface(
         shape = RoundedCornerShape(8.dp),
@@ -182,6 +204,7 @@ private fun CouponCardNormalPreview() {
                 categoryDisplayName = "餐飲",
                 categoryEmoji = "🍱",
                 quantity = 2,
+                type = CouponType.PHYSICAL,
                 daysUntilExpire = 45
             ),
             onClick = {},
@@ -202,6 +225,7 @@ private fun CouponCardExpiringSoonPreview() {
                 categoryDisplayName = "電影",
                 categoryEmoji = "🎬",
                 quantity = 1,
+                type = CouponType.DIGITAL,
                 daysUntilExpire = 3
             ),
             onClick = {},

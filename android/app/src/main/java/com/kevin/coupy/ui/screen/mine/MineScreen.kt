@@ -106,7 +106,7 @@ private fun CurrentPlanCard(onUpgradeClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "升級 Pro 解鎖自動雲端同步、無限 OCR、自訂分類等",
+                text = "升級 Pro 解鎖自動雲端同步、無限 OCR、自訂提醒時間",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

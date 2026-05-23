@@ -5,13 +5,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kevin.coupy.data.CouponRepository
+import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.data.category.CategoryRepository
 import com.kevin.coupy.data.entity.CouponEntity
 import com.kevin.coupy.data.ocr.MonthlyUsage
+import com.kevin.coupy.data.ocr.OcrException
 import com.kevin.coupy.data.ocr.OcrService
 import com.kevin.coupy.data.ocr.OcrUsageTracker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -79,7 +82,9 @@ class CouponEditViewModel @Inject constructor(
                         name = coupon.name,
                         expireDate = coupon.expireDate,
                         categoryId = coupon.category,
-                        quantity = coupon.quantity
+                        quantity = coupon.quantity,
+                        type = coupon.type,
+                        note = coupon.note.orEmpty()
                     )
                 }
             }
@@ -103,6 +108,14 @@ class CouponEditViewModel @Inject constructor(
     fun onQuantityChange(quantity: Int) {
         val clamped = quantity.coerceIn(1, MAX_QUANTITY)
         _formState.update { it.copy(quantity = clamped) }
+    }
+
+    fun onTypeChange(type: CouponType) {
+        _formState.update { it.copy(type = type) }
+    }
+
+    fun onNoteChange(note: String) {
+        _formState.update { it.copy(note = note.take(MAX_NOTE_LENGTH)) }
     }
 
     // ===== 儲存 =====
@@ -162,18 +175,35 @@ class CouponEditViewModel @Inject constructor(
     // ===== OCR =====
 
     /**
-     * 拍照後呼叫：執行 OCR、計次 +1、把結果填入表單欄位。
+     * 拍照後呼叫：執行 OCR、把結果填入表單欄位、計次 +1。
      * 撞牆檢查由 UI 側負責——這個 method 假設呼叫前已通過配額檢查。
+     *
+     * 計次策略：
+     * - 任何錯誤 → 不扣（recognizeTicket throw 後 increment 不會被呼叫）
+     * - Gemini 成功但完全沒辨識到內容（hasAnyData = false）→ 不扣，提示使用者
+     * - 至少抓到一個欄位 → 扣 1 次
+     *
+     * CancellationException 必須 rethrow，不然 viewModelScope 取消時會被當成錯誤吞掉。
      */
     fun runOcrOnImage(imageUri: Uri) {
         viewModelScope.launch {
             _isOcrRunning.value = true
             try {
                 val result = ocrService.recognizeTicket(imageUri)
-                ocrUsageTracker.increment()
-                applyOcrResultToForm(result)
+                if (result.hasAnyData) {
+                    ocrUsageTracker.increment()
+                    applyOcrResultToForm(result)
+                } else {
+                    _saveEvent.send(
+                        SaveEvent.Error("沒辨識到票券資訊，請手動輸入或換張清晰的圖（這次不扣次數）")
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: OcrException) {
+                _saveEvent.send(SaveEvent.Error(e.userMessage))
             } catch (e: Exception) {
-                _saveEvent.send(SaveEvent.Error("辨識失敗：${e.message ?: "請重試"}"))
+                _saveEvent.send(SaveEvent.Error(OcrException.Unknown.userMessage))
             } finally {
                 _isOcrRunning.value = false
             }
@@ -195,6 +225,7 @@ class CouponEditViewModel @Inject constructor(
         const val KEY_COUPON_ID = "couponId"
         const val MAX_NAME_LENGTH = 30
         const val MAX_QUANTITY = 999
+        const val MAX_NOTE_LENGTH = 100
     }
 }
 
@@ -204,25 +235,34 @@ data class CouponFormState(
     val name: String,
     val expireDate: LocalDate,
     val categoryId: String,
-    val quantity: Int
+    val quantity: Int,
+    val type: CouponType,
+    /** 空字串 = 沒填備註，存進 DB 時轉成 null */
+    val note: String
 ) {
     val isValid: Boolean
         get() = name.isNotBlank() &&
                 categoryId.isNotBlank() &&
                 quantity in 1..CouponEditViewModel.MAX_QUANTITY
 
+    private val noteForDb: String? get() = note.trim().takeIf { it.isNotEmpty() }
+
     fun toNewEntity(): CouponEntity = CouponEntity(
         name = name.trim(),
         expireDate = expireDate,
         category = categoryId,
-        quantity = quantity
+        quantity = quantity,
+        type = type,
+        note = noteForDb
     )
 
     fun applyTo(existing: CouponEntity): CouponEntity = existing.copy(
         name = name.trim(),
         expireDate = expireDate,
         category = categoryId,
-        quantity = quantity
+        quantity = quantity,
+        type = type,
+        note = noteForDb
     )
 
     companion object {
@@ -230,7 +270,9 @@ data class CouponFormState(
             name = "",
             expireDate = LocalDate.now().plusDays(30),
             categoryId = "dining", // 預設「餐飲」（最常見類別）
-            quantity = 1
+            quantity = 1,
+            type = CouponType.PHYSICAL,
+            note = ""
         )
     }
 }

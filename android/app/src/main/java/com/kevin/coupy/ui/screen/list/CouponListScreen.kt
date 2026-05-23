@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.LocalActivity
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.ui.components.CouponActionsBottomSheet
 import com.kevin.coupy.ui.components.DeleteCouponDialog
 import com.kevin.coupy.ui.components.UseTicketsDialog
@@ -60,6 +64,7 @@ fun CouponListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val selectedCategoryId by viewModel.selectedCategoryId.collectAsStateWithLifecycle()
 
     var actionSheetItem by remember { mutableStateOf<CouponListItem?>(null) }
     var useDialogItem by remember { mutableStateOf<CouponListItem?>(null) }
@@ -96,6 +101,14 @@ fun CouponListScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
+            if (uiState.availableCategories.isNotEmpty()) {
+                CategoryFilterRow(
+                    categories = uiState.availableCategories,
+                    selectedCategoryId = selectedCategoryId,
+                    onSelect = viewModel::onCategoryFilterChange
+                )
+            }
+
             when {
                 uiState.isLoading -> {
                     Box(modifier = Modifier.fillMaxSize())
@@ -110,7 +123,7 @@ fun CouponListScreen(
                 uiState.hasNoSearchResults -> {
                     EmptyState(
                         title = "找不到符合的票券",
-                        hint = "試試其他關鍵字",
+                        hint = "試試其他關鍵字或分類",
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -219,6 +232,48 @@ private fun SearchBar(
             unfocusedContainerColor = MaterialTheme.colorScheme.surface
         )
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CategoryFilterRow(
+    categories: List<Category>,
+    selectedCategoryId: String?,
+    onSelect: (String?) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item(key = "__all__") {
+            FilterChip(
+                selected = selectedCategoryId == null,
+                onClick = { onSelect(null) },
+                label = { Text("全部") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+        items(items = categories, key = { it.id }) { category ->
+            val isSelected = selectedCategoryId == category.id
+            FilterChip(
+                selected = isSelected,
+                onClick = { onSelect(if (isSelected) null else category.id) },
+                label = {
+                    Text("${category.emoji} ${category.displayName}")
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+        }
+    }
 }
 
 @Composable

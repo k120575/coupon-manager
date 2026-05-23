@@ -55,6 +55,10 @@ class CouponRepository @Inject constructor(
     fun observeCategoryDistribution(): Flow<List<CategoryTicketCount>> =
         dao.observeCategoryDistribution()
 
+    /** 使用張數按分類分佈——身分標籤用 */
+    fun observeUsageByCategory(): Flow<List<CategoryTicketCount>> =
+        usageEventDao.observeUsageByCategory()
+
     // ===== 寫入 =====
 
     suspend fun add(coupon: CouponEntity): Long = dao.insert(coupon)

@@ -24,4 +24,21 @@ interface UsageEventDao {
     /** 歷史累計使用張數 */
     @Query("SELECT COALESCE(SUM(count), 0) FROM usage_events")
     fun observeUsageAllTime(): Flow<Int>
+
+    /**
+     * 使用張數按 coupons.category 分組。
+     *
+     * 用於統計頁的「身分標籤」（archetype）——看的是使用者實際的「行為」分佈，
+     * 而非持有票券分佈。JOIN coupons 取分類（包含 status='deleted' 的軟刪除，
+     * 因為使用歷史不應該因刪除而消失）。
+     */
+    @Query(
+        """
+        SELECT c.category AS category, COALESCE(SUM(e.count), 0) AS total
+        FROM usage_events e
+        INNER JOIN coupons c ON e.coupon_id = c.id
+        GROUP BY c.category
+        """
+    )
+    fun observeUsageByCategory(): Flow<List<com.kevin.coupy.data.dao.CategoryTicketCount>>
 }

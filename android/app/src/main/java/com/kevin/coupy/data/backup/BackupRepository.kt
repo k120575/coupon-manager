@@ -1,6 +1,7 @@
 package com.kevin.coupy.data.backup
 
 import com.kevin.coupy.data.CouponStatus
+import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.dao.CouponDao
 import com.kevin.coupy.data.entity.CouponEntity
 import org.json.JSONArray
@@ -115,8 +116,10 @@ class BackupRepository @Inject constructor(
         put("category", c.category)
         put("quantity", c.quantity)
         put("status", c.status.dbValue)
+        put("type", c.type.dbValue)
         put("created_at", c.createdAt.toString())
         if (c.usedAt != null) put("used_at", c.usedAt.toString())
+        if (!c.note.isNullOrBlank()) put("note", c.note)
     }
 
     private fun parseCoupon(obj: JSONObject): CouponEntity? {
@@ -125,8 +128,10 @@ class BackupRepository @Inject constructor(
         val category = obj.optString("category").takeIf { it.isNotBlank() } ?: return null
         val quantity = obj.optInt("quantity", 1).coerceAtLeast(1)
         val statusStr = obj.optString("status", "active")
+        val typeStr = obj.optString("type", CouponType.PHYSICAL.dbValue)
         val createdAtStr = obj.optString("created_at").takeIf { it.isNotBlank() }
         val usedAtStr = obj.optString("used_at").takeIf { it.isNotBlank() }
+        val note = obj.optString("note").takeIf { it.isNotBlank() }
 
         val expireDate = runCatching { LocalDate.parse(expireStr) }.getOrNull() ?: return null
         val createdAt = createdAtStr?.let { runCatching { Instant.parse(it) }.getOrNull() }
@@ -134,6 +139,7 @@ class BackupRepository @Inject constructor(
         val usedAt = usedAtStr?.let { runCatching { Instant.parse(it) }.getOrNull() }
         val status = CouponStatus.fromDbValue(statusStr)
             .let { if (it == CouponStatus.DELETED) CouponStatus.ACTIVE else it }
+        val type = CouponType.fromDbValue(typeStr)
 
         return CouponEntity(
             name = name,
@@ -141,8 +147,10 @@ class BackupRepository @Inject constructor(
             category = category,
             quantity = quantity,
             status = status,
+            type = type,
             createdAt = createdAt,
-            usedAt = usedAt
+            usedAt = usedAt,
+            note = note
         )
     }
 

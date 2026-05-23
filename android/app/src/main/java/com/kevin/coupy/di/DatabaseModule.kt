@@ -27,7 +27,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             AppDatabase.DB_NAME
         )
-            .addMigrations(AppDatabase.MIGRATION_1_2)
+            .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
             // 開發階段保留 destructive fallback 當保險絲；上架前移除這行
             .fallbackToDestructiveMigration()
             .build()

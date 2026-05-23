@@ -2,15 +2,17 @@ package com.kevin.coupy.data.entity
 
 import androidx.room.TypeConverter
 import com.kevin.coupy.data.CouponStatus
+import com.kevin.coupy.data.CouponType
 import java.time.Instant
 import java.time.LocalDate
 
 /**
- * Room TypeConverter：把 LocalDate / Instant / CouponStatus 對應到 SQLite 原生型別。
+ * Room TypeConverter：把 LocalDate / Instant / CouponStatus / CouponType 對應到 SQLite 原生型別。
  *
  * - LocalDate ↔ String（ISO 8601: "2026-12-31"），方便閱讀 + 直接排序
  * - Instant ↔ Long（epoch millis），最小空間最快查詢
  * - CouponStatus ↔ String，跟 LINE bot D1 schema 對齊
+ * - CouponType ↔ String，v3 migration 新增
  */
 class Converters {
 
@@ -31,4 +33,10 @@ class Converters {
 
     @TypeConverter
     fun toCouponStatus(value: String): CouponStatus = CouponStatus.fromDbValue(value)
+
+    @TypeConverter
+    fun fromCouponType(type: CouponType): String = type.dbValue
+
+    @TypeConverter
+    fun toCouponType(value: String): CouponType = CouponType.fromDbValue(value)
 }

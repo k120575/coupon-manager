@@ -129,7 +129,7 @@ private fun HeaderSection() {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "解鎖自動同步、無限 OCR、自訂提醒等功能。",
+                text = "解鎖自動雲端同步、無限 OCR、自訂提醒時間。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
             )
@@ -158,7 +158,7 @@ private fun FeatureListSection() {
                 if (index != FEATURES.lastIndex) {
                     androidx.compose.material3.HorizontalDivider(
                         modifier = Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                 }
             }
@@ -283,7 +283,5 @@ private data class ProFeature(
 private val FEATURES = listOf(
     ProFeature("☁️", "自動雲端同步", "即時同步票券到所有裝置"),
     ProFeature("🚀", "無限 OCR", "不限次數拍照辨識"),
-    ProFeature("🏷️", "自訂分類無上限", "自由建立分類 + 顏色/圖示"),
-    ProFeature("🔍", "進階篩選", "多條件組合搜尋"),
     ProFeature("⏰", "自訂提醒時間", "1/3/7/30 天前彈性設定")
 )

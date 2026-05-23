@@ -118,7 +118,7 @@ fun CategoryManagementScreen(
                         if (category.id != categories.lastOrNull()?.id) {
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 56.dp),
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                                color = MaterialTheme.colorScheme.outlineVariant
                             )
                         }
                     }

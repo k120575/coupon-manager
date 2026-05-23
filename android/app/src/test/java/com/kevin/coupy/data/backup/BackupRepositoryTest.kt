@@ -1,6 +1,7 @@
 package com.kevin.coupy.data.backup
 
 import com.kevin.coupy.data.CouponStatus
+import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.dao.CategoryTicketCount
 import com.kevin.coupy.data.dao.CouponDao
 import com.kevin.coupy.data.entity.CouponEntity
@@ -143,6 +144,75 @@ class BackupRepositoryTest {
         val result = repo.importFromJson(json)
         assertEquals(1, result.imported)
         assertEquals(CouponStatus.ACTIVE, dao.inserted[0].status)
+    }
+
+    @Test
+    fun `round-trip preserves type and note v3 fields`() = runTest {
+        val source = listOf(
+            CouponEntity(
+                name = "紙本喜餅券",
+                expireDate = LocalDate.parse("2026-12-31"),
+                category = "dining",
+                quantity = 3,
+                type = CouponType.PHYSICAL,
+                note = "周一不可用、出示會員卡",
+                createdAt = Instant.parse("2026-01-01T00:00:00Z")
+            ),
+            CouponEntity(
+                name = "全家數位券",
+                expireDate = LocalDate.parse("2026-08-31"),
+                category = "shopping",
+                quantity = 1,
+                type = CouponType.DIGITAL,
+                note = null,
+                createdAt = Instant.parse("2026-01-01T00:00:00Z")
+            )
+        )
+        val srcDao = FakeCouponDao(source)
+        val srcRepo = BackupRepository(srcDao)
+        val json = srcRepo.exportToJson(Instant.parse("2026-05-23T10:00:00Z"))
+
+        val dstDao = FakeCouponDao(emptyList())
+        val dstRepo = BackupRepository(dstDao)
+        dstRepo.importFromJson(json)
+
+        val restored = dstDao.inserted.associateBy { it.name }
+        assertEquals(CouponType.PHYSICAL, restored["紙本喜餅券"]!!.type)
+        assertEquals("周一不可用、出示會員卡", restored["紙本喜餅券"]!!.note)
+        assertEquals(CouponType.DIGITAL, restored["全家數位券"]!!.type)
+        assertEquals(null, restored["全家數位券"]!!.note)
+    }
+
+    @Test
+    fun `old v1 backup without type or note restores with safe defaults`() = runTest {
+        // 模擬從 v2 階段做的 backup（沒有 type / note 欄位）
+        val oldJson = """
+            {"version": 1, "exported_at": "2026-05-22T10:00:00Z", "coupons": [
+              {"name": "舊備份票券", "expire_date": "2026-08-31", "category": "drink",
+               "quantity": 1, "status": "active", "created_at": "2026-01-01T00:00:00Z"}
+            ]}
+        """.trimIndent()
+        val dao = FakeCouponDao(emptyList())
+        val repo = BackupRepository(dao)
+        repo.importFromJson(oldJson)
+
+        val inserted = dao.inserted.single()
+        assertEquals(CouponType.PHYSICAL, inserted.type)   // 沒帶 type → PHYSICAL fallback
+        assertEquals(null, inserted.note)                   // 沒帶 note → null
+    }
+
+    @Test
+    fun `unknown type value falls back to PHYSICAL`() = runTest {
+        val json = """
+            {"version": 1, "coupons": [
+              {"name": "怪 type", "expire_date": "2026-08-31", "category": "drink",
+               "quantity": 1, "type": "alien", "status": "active"}
+            ]}
+        """.trimIndent()
+        val dao = FakeCouponDao(emptyList())
+        val repo = BackupRepository(dao)
+        repo.importFromJson(json)
+        assertEquals(CouponType.PHYSICAL, dao.inserted.single().type)
     }
 
     @Test

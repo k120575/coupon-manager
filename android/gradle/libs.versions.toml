@@ -3,8 +3,8 @@
 # 注意：這三者是綁定關係，KSP 版本必須 match Kotlin 版本
 # 升級前先查 https://github.com/google/ksp/releases 確認 KSP 版本格式 <kotlin>-<ksp-build>
 agp = "8.13.2"
-kotlin = "2.1.0"
-ksp = "2.1.0-1.0.29"
+kotlin = "2.1.21"
+ksp = "2.1.21-2.0.2"
 
 # AndroidX core
 core-ktx = "1.15.0"
@@ -18,11 +18,11 @@ compose-bom = "2025.01.00"
 navigation-compose = "2.8.5"
 
 # Hilt
-hilt = "2.53"
+hilt = "2.57.2"
 hilt-navigation-compose = "1.2.0"
 
 # Room
-room = "2.6.1"
+room = "2.7.2"
 
 # DataStore
 datastore = "1.1.1"
