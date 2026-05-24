@@ -7,9 +7,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.kevin.coupy.data.theme.ThemeMode
 
 /**
  * 券管家 Coupy 主題
@@ -76,9 +76,14 @@ private val CoupyLightColors = lightColorScheme(
 
 @Composable
 fun CoupyTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
     val colorScheme = if (darkTheme) CoupyDarkColors else CoupyLightColors
 
     // 同步 status bar 圖示顏色（淺底用深色 icon、深底用淺色 icon）。

@@ -6,6 +6,7 @@ import com.kevin.coupy.data.CouponRepository
 import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.data.category.CategoryRepository
 import com.kevin.coupy.data.entity.CouponEntity
+import com.kevin.coupy.data.isNoExpiration
 import com.kevin.coupy.ui.screen.list.CouponListItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -48,8 +49,11 @@ class HomeViewModel @Inject constructor(
             expiringIn7Count = daysMap.filterByDays(4L..7L),
             expiringIn30Count = daysMap.filterByDays(8L..30L),
             expiredCount = daysMap.filterByDays(Long.MIN_VALUE..-1L),
+            // 「即將到期」嚴格定義：30 天內到期、未過期、非無期限。
+            // 跟上方「30 天內」統計卡呼應；空 = 好消息（沒有票券快流失），不硬填內容。
             topExpiring = coupons
-                .filter { (daysMap[it] ?: Long.MAX_VALUE) >= 0 }
+                .filter { !it.expireDate.isNoExpiration() }
+                .filter { (daysMap[it] ?: Long.MAX_VALUE) in 0L..30L }
                 .sortedBy { it.expireDate }
                 .take(3)
                 .map { it.toListItem(categoryById, today) },

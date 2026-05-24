@@ -118,7 +118,12 @@ fun HomeScreen(
                     }
                 }
             } else if (!uiState.isLoading) {
-                item { NoCouponsHint() }
+                if (uiState.totalTicketCount == 0) {
+                    item { NoCouponsHint() }
+                } else {
+                    item { ExpiringListHeader() }
+                    item { NoUrgentHint() }
+                }
             }
         }
     }
@@ -300,6 +305,37 @@ private fun ExpiringListHeader() {
                 .height(1.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant)
         )
+    }
+}
+
+@Composable
+private fun NoUrgentHint() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "目前沒有快到期的票券 ✨",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "30 天內都沒有要到期，慢慢用",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 

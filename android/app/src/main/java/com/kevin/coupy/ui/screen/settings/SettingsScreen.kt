@@ -14,25 +14,38 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.coupy.data.theme.ThemeMode
+import com.kevin.coupy.ui.theme.ThemeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,8 +53,12 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onCategoryManagementClick: () -> Unit,
     onBackupClick: () -> Unit,
-    onAboutClick: () -> Unit
+    onAboutClick: () -> Unit,
+    themeViewModel: ThemeViewModel = hiltViewModel()
 ) {
+    val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
+    var showThemeDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -79,6 +96,16 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column {
+                    SettingsRow(
+                        icon = Icons.Outlined.Brightness6,
+                        title = "顯示外觀",
+                        subtitle = themeMode.displayName,
+                        onClick = { showThemeDialog = true }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
                     SettingsRow(
                         icon = Icons.Outlined.Category,
                         title = "分類管理",
@@ -118,7 +145,67 @@ fun SettingsScreen(
                 textAlign = TextAlign.Center
             )
         }
+
+        if (showThemeDialog) {
+            ThemeModeDialog(
+                current = themeMode,
+                onDismiss = { showThemeDialog = false },
+                onSelect = { mode ->
+                    themeViewModel.setThemeMode(mode)
+                    showThemeDialog = false
+                }
+            )
+        }
     }
+}
+
+@Composable
+private fun ThemeModeDialog(
+    current: ThemeMode,
+    onDismiss: () -> Unit,
+    onSelect: (ThemeMode) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "顯示外觀", fontWeight = FontWeight.SemiBold)
+        },
+        text = {
+            Column {
+                ThemeMode.entries.forEach { mode ->
+                    Surface(
+                        onClick = { onSelect(mode) },
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = mode == current,
+                                onClick = { onSelect(mode) },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = mode.displayName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("關閉")
+            }
+        }
+    )
 }
 
 @Composable
