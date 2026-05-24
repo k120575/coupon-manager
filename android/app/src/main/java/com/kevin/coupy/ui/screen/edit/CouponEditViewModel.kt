@@ -135,6 +135,8 @@ class CouponEditViewModel @Inject constructor(
                     }
                 }
                 _saveEvent.send(SaveEvent.Saved)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _saveEvent.send(SaveEvent.Error(e.message ?: "儲存失敗"))
             }
@@ -154,6 +156,8 @@ class CouponEditViewModel @Inject constructor(
                 } else {
                     _saveEvent.send(SaveEvent.Error("使用失敗（張數不足或票券不存在）"))
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _saveEvent.send(SaveEvent.Error(e.message ?: "使用失敗"))
             }
@@ -166,6 +170,8 @@ class CouponEditViewModel @Inject constructor(
             try {
                 couponRepository.delete(id)
                 _saveEvent.send(SaveEvent.Deleted)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _saveEvent.send(SaveEvent.Error(e.message ?: "刪除失敗"))
             }

@@ -29,6 +29,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kevin.coupy.data.donation.DonationEvent
 import com.kevin.coupy.data.donation.DonationProduct
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +50,7 @@ fun DonateScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.donationEvents.collect { event ->
@@ -126,8 +129,11 @@ fun DonateScreen(
                 DonationProduct.entries.forEach { product ->
                     OutlinedButton(
                         onClick = {
-                            context.findActivity()?.let { activity ->
+                            val activity = context.findActivity()
+                            if (activity != null) {
                                 viewModel.donate(activity, product)
+                            } else {
+                                scope.launch { snackbarHostState.showSnackbar("暫時無法處理，請稍後再試") }
                             }
                         },
                         modifier = Modifier

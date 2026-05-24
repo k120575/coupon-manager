@@ -18,6 +18,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -38,6 +39,12 @@ import javax.inject.Singleton
  *   4. 透過 donationEvents emit 結果給 UI 顯示 Snackbar
  *
  * 不記錄任何贊助歷史、不綁帳號——純粹「回禮」精神。
+ *
+ * 生命週期說明：
+ * Singleton scope，BillingClient 在 App process 整個生命週期都活著。
+ * Coupy 是「開一下就關」的 App（不是長時間在前景的串流類 App），
+ * 沒必要做 endConnection 的 ceremony——process 結束時系統會自動清理 binding。
+ * Service 被 Play Store 重啟時透過 onBillingServiceDisconnected → 自動重連。
  */
 @Singleton
 class DonationRepository @Inject constructor(
@@ -75,7 +82,11 @@ class DonationRepository @Inject constructor(
             }
 
             override fun onBillingServiceDisconnected() {
-                // Play Store 進程被 kill；下次 launchBillingFlow 前會 retry
+                // Play Store 進程被 kill / 重啟。延遲後自動重連，避免使用者下次點 Donate 才發現壞了
+                scope.launch {
+                    delay(RECONNECT_DELAY_MS)
+                    if (!billingClient.isReady) connect()
+                }
             }
         })
     }
@@ -151,6 +162,10 @@ class DonationRepository @Inject constructor(
         } else {
             _donationEvents.emit(DonationEvent.Failed)
         }
+    }
+
+    companion object {
+        private const val RECONNECT_DELAY_MS = 1_000L
     }
 }
 

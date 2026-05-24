@@ -761,10 +761,27 @@ private fun QuantityField(
                         onValueChange = { newText ->
                             // 只接受數字，最多 3 位（999 上限）
                             val digits = newText.filter { it.isDigit() }.take(3)
-                            localText = digits
-                            digits.toIntOrNull()?.let { n ->
-                                if (n in 1..CouponEditViewModel.MAX_QUANTITY) {
-                                    onValueChange(n)
+                            val parsed = digits.toIntOrNull()
+                            when {
+                                parsed == null -> {
+                                    // 空白：允許暫時為空讓使用者繼續打，不動 viewmodel
+                                    localText = ""
+                                }
+                                parsed < 1 -> {
+                                    // 打了 0 / 00 / 000：clamp 到 1
+                                    localText = "1"
+                                    if (value != 1) onValueChange(1)
+                                }
+                                parsed > CouponEditViewModel.MAX_QUANTITY -> {
+                                    // 防禦：take(3) 已限制 999 上限，這分支理論上走不到
+                                    localText = CouponEditViewModel.MAX_QUANTITY.toString()
+                                    if (value != CouponEditViewModel.MAX_QUANTITY) {
+                                        onValueChange(CouponEditViewModel.MAX_QUANTITY)
+                                    }
+                                }
+                                else -> {
+                                    localText = digits
+                                    if (value != parsed) onValueChange(parsed)
                                 }
                             }
                         },
