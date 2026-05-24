@@ -19,7 +19,8 @@ import javax.inject.Singleton
  *
  * 目前儲存的東西：
  * - 分類自訂名稱（CategoryRepository 用）
- * - 未來：Pro 訊號 / OCR 用量計數 / 主題偏好
+ * - 主題偏好（ThemePreferenceRepository 用）
+ * - OCR 用量計數（OcrUsageTracker 用）
  */
 @Module
 @InstallIn(SingletonComponent::class)

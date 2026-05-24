@@ -23,8 +23,7 @@ import java.time.LocalDate
 /**
  * 每日檢查即將到期的票券並發送推播。
  *
- * v1.0：固定 7 天前一次。沒有票券即將到期就不發。
- * v1.1+ Pro：自訂提前 1/3/7/30 天 + 地點觸發。
+ * 固定 7 天前一次。沒有票券即將到期就不發。
  */
 @HiltWorker
 class ExpiryReminderWorker @AssistedInject constructor(

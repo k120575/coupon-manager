@@ -18,7 +18,7 @@ import javax.inject.Singleton
  * - DataStore Preferences（儲存「使用者把某個 id 改名成 X」的 override）
  *
  * v1.0 限制：
- * - 不能新增分類（Pro 才能）
+ * - 不能新增分類
  * - 不能刪除分類（避免使用者誤刪、孤兒票券）
  * - 改名長度 1-8 字
  */

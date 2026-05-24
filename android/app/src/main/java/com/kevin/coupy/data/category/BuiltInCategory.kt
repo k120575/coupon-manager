@@ -6,10 +6,10 @@ package com.kevin.coupy.data.category
  * 設計原則：
  * - **id 是 DB 主鍵**（票券表的 `category` 欄位儲存這個值），永遠不變
  * - **defaultName 是預設顯示名**，使用者可在設定裡重新命名（透過 CategoryRepository）
- * - **emoji 是 v1.0 的圖示**，Pro 版可自訂顏色/圖示（v1.1+）
+ * - **emoji 是固定圖示**
  *
  * id 一旦發布就不能改——改了會讓使用者既有的票券分類消失。
- * 要新增分類請加在 OTHER 之前，並且 Pro 版才能讓使用者「真正新增自訂分類」。
+ * 要新增分類請加在 OTHER 之前。
  */
 enum class BuiltInCategory(
     val id: String,
