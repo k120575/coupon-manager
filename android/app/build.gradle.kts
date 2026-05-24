@@ -120,6 +120,9 @@ dependencies {
     implementation(libs.okhttp)
     debugImplementation(libs.okhttp.logging)
 
+    // Google Play Billing (Donate via in-app purchase)
+    implementation(libs.billing.ktx)
+
     // Debug
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)

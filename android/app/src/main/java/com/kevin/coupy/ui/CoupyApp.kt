@@ -22,10 +22,9 @@ import com.kevin.coupy.ui.screen.home.HomeScreen
 import com.kevin.coupy.ui.screen.list.CouponListScreen
 import com.kevin.coupy.ui.screen.mine.MineScreen
 import com.kevin.coupy.ui.screen.backup.BackupScreen
-import com.kevin.coupy.ui.screen.pro.ProIntroScreen
+import com.kevin.coupy.ui.screen.donate.DonateScreen
 import com.kevin.coupy.ui.screen.settings.AboutScreen
 import com.kevin.coupy.ui.screen.settings.CategoryManagementScreen
-import com.kevin.coupy.ui.screen.settings.SettingsScreen
 import com.kevin.coupy.ui.screen.stats.StatsScreen
 
 /**
@@ -38,7 +37,7 @@ import com.kevin.coupy.ui.screen.stats.StatsScreen
  *     ├── floatingActionButton：+ 新增，只在 HOME / TICKETS 顯示
  *     └── NavHost：所有路由
  *
- * 子畫面（edit / settings / pro_intro）會自動隱藏 bottomBar 與 FAB。
+ * 子畫面（edit / category / backup / about / donate）會自動隱藏 bottomBar 與 FAB。
  */
 @Composable
 fun CoupyApp() {
@@ -115,8 +114,10 @@ fun CoupyApp() {
             composable(Routes.MINE) {
                 MineScreen(
                     innerPadding = innerPadding,
-                    onSettingsClick = { navController.navigate(Routes.SETTINGS) },
-                    onUpgradeClick = { navController.navigate(Routes.PRO_INTRO) }
+                    onCategoryManagementClick = { navController.navigate(Routes.CATEGORY_MANAGEMENT) },
+                    onBackupClick = { navController.navigate(Routes.BACKUP) },
+                    onDonateClick = { navController.navigate(Routes.DONATE) },
+                    onAboutClick = { navController.navigate(Routes.ABOUT) }
                 )
             }
 
@@ -131,17 +132,7 @@ fun CoupyApp() {
                 )
             ) {
                 CouponEditScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToProIntro = { navController.navigate(Routes.PRO_INTRO) }
-                )
-            }
-
-            composable(Routes.SETTINGS) {
-                SettingsScreen(
-                    onNavigateBack = { navController.popBackStack() },
-                    onCategoryManagementClick = { navController.navigate(Routes.CATEGORY_MANAGEMENT) },
-                    onBackupClick = { navController.navigate(Routes.BACKUP) },
-                    onAboutClick = { navController.navigate(Routes.ABOUT) }
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -163,8 +154,8 @@ fun CoupyApp() {
                 )
             }
 
-            composable(Routes.PRO_INTRO) {
-                ProIntroScreen(
+            composable(Routes.DONATE) {
+                DonateScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

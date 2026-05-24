@@ -34,28 +34,28 @@ sealed class OcrException(val userMessage: String) : Exception(userMessage) {
         private fun readResolve(): Any = NetworkError
     }
 
-    // ===== AI 服務問題 =====
-    object AiBusy : OcrException("AI 服務忙線中，請稍後再試一次") {
+    // ===== 辨識服務問題 =====
+    object AiBusy : OcrException("辨識服務目前太忙，過一下再試一次") {
         private fun readResolve(): Any = AiBusy
     }
-    object AiUnavailable : OcrException("AI 辨識暫時不能用，請手動輸入或稍後再試") {
+    object AiUnavailable : OcrException("辨識服務暫時無法使用，先手動輸入或稍後再試") {
         private fun readResolve(): Any = AiUnavailable
     }
     object AiBlocked : OcrException("這張圖片無法辨識，請換一張票券照片") {
         private fun readResolve(): Any = AiBlocked
     }
-    object AiFailed : OcrException("AI 辨識失敗，請重試或手動輸入") {
+    object AiFailed : OcrException("這次辨識沒成功，再試一次或手動輸入") {
         private fun readResolve(): Any = AiFailed
     }
 
     // ===== 設定 / 兜底 =====
-    object NotConfigured : OcrException("辨識服務尚未設定，請聯絡支援") {
+    object NotConfigured : OcrException("辨識功能還沒準備好，請稍後再試") {
         private fun readResolve(): Any = NotConfigured
     }
-    object Unauthorized : OcrException("辨識服務驗證失敗，請聯絡支援") {
+    object Unauthorized : OcrException("辨識功能暫時無法使用，請稍後再試") {
         private fun readResolve(): Any = Unauthorized
     }
-    object Unknown : OcrException("辨識失敗，請重試或手動輸入") {
+    object Unknown : OcrException("這次辨識沒成功，再試一次或手動輸入") {
         private fun readResolve(): Any = Unknown
     }
 

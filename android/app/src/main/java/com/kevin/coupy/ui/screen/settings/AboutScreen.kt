@@ -1,6 +1,5 @@
 package com.kevin.coupy.ui.screen.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +62,7 @@ fun AboutScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -85,7 +87,7 @@ fun AboutScreen(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 簡介卡片
+            // 卡片 1：痛點型 hero
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -93,14 +95,21 @@ fun AboutScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
-                        text = "票券管理就該這麼簡單",
+                        text = "你的票券，不該靜靜過期",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "管理你手上的優惠券、餐券、電影票、贈品券。到期前自動提醒，再也不會錯過。",
+                        text = "皮夾、抽屜、各家商家 App、LINE 訊息、Email——票券常常散落在五個地方，到期忘了用是日常。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 22.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "券管家把它們集中起來，到期前提醒你，讓「擁有」變成「真的用上了」。",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 22.sp
@@ -110,7 +119,7 @@ fun AboutScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 隱私資訊
+            // 卡片 2：隱私
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -121,7 +130,7 @@ fun AboutScreen(
                         Text(text = "🔒", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.size(8.dp))
                         Text(
-                            text = "你的資料只存在你的手機",
+                            text = "你的資料只在你的手機",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -129,7 +138,7 @@ fun AboutScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "免費版完全本機儲存，不上傳任何資料。Pro 雲端同步上線後，使用者可自選是否啟用。",
+                        text = "沒有帳號、沒有雲端、沒有資料上傳。要換手機，從「資料備份」匯出就好——你的資料你做主。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp
@@ -137,7 +146,43 @@ fun AboutScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 卡片 3：開發者故事 + 承諾
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "💡", style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(
+                            text = "為什麼做這個 App",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "我也常把優惠券放著放著就過期。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "市面上的工具要嘛太複雜、要嘛綁帳號、要嘛塞滿廣告——所以自己做了一個簡單的。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             Text(
                 text = "個人開發者作品 · Made with ☕",
@@ -145,6 +190,8 @@ fun AboutScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

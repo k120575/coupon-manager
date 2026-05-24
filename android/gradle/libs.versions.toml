@@ -37,6 +37,9 @@ coroutines = "1.9.0"
 # OkHttp (for App → Worker /ocr)
 okhttp = "4.12.0"
 
+# Google Play Billing (for Donate)
+billing = "7.1.1"
+
 # Testing
 junit = "4.13.2"
 androidx-junit = "1.2.1"
@@ -91,6 +94,9 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 # OkHttp
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+
+# Google Play Billing
+billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 
 # Test
 junit = { group = "junit", name = "junit", version.ref = "junit" }

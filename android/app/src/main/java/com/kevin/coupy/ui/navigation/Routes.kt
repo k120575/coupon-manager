@@ -5,7 +5,7 @@ package com.kevin.coupy.ui.navigation
  *
  * 結構：
  * - 4 個底部 tab：HOME / TICKETS / STATS / MINE
- * - 子頁面：EDIT（新增/編輯）、SETTINGS（從 MINE 進入）、PRO_INTRO（從 MINE 進入）
+ * - 子頁面：EDIT（新增/編輯）、SETTINGS（從 MINE 進入）
  *
  * Tab 切換時保留各自的 back stack；子頁面共用上層導航堆疊。
  */
@@ -32,9 +32,8 @@ object Routes {
     fun editRoute(couponId: Long? = null): String =
         if (couponId == null) EDIT else "$EDIT?$EDIT_ARG_COUPON_ID=$couponId"
 
-    const val SETTINGS = "settings"
     const val CATEGORY_MANAGEMENT = "category_management"
     const val BACKUP = "backup"
     const val ABOUT = "about"
-    const val PRO_INTRO = "pro_intro"
+    const val DONATE = "donate"
 }

@@ -2,11 +2,11 @@ package com.kevin.coupy.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalActivity
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -65,5 +65,5 @@ private enum class BottomTab(
     HOME(Routes.HOME, "首頁", Icons.Filled.Home, Icons.Outlined.Home),
     TICKETS(Routes.TICKETS, "票券", Icons.Outlined.LocalActivity, Icons.Outlined.LocalActivity),
     STATS(Routes.STATS, "統計", Icons.Outlined.BarChart, Icons.Outlined.BarChart),
-    MINE(Routes.MINE, "我的", Icons.Filled.Person, Icons.Outlined.Person);
+    MINE(Routes.MINE, "設定", Icons.Filled.Settings, Icons.Outlined.Settings);
 }

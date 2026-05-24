@@ -105,7 +105,6 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CouponEditScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToProIntro: () -> Unit,
     viewModel: CouponEditViewModel = hiltViewModel()
 ) {
     val formState by viewModel.formState.collectAsStateWithLifecycle()
@@ -357,11 +356,7 @@ fun CouponEditScreen(
         if (showOcrLimitDialog) {
             OcrLimitReachedDialog(
                 limit = ocrUsage.limit,
-                onDismiss = { showOcrLimitDialog = false },
-                onUpgradeClick = {
-                    showOcrLimitDialog = false
-                    onNavigateToProIntro()
-                }
+                onDismiss = { showOcrLimitDialog = false }
             )
         }
     }
@@ -461,8 +456,7 @@ private fun OcrActionButton(
 @Composable
 private fun OcrLimitReachedDialog(
     limit: Int,
-    onDismiss: () -> Unit,
-    onUpgradeClick: () -> Unit
+    onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -474,22 +468,17 @@ private fun OcrLimitReachedDialog(
         },
         text = {
             Text(
-                text = "免費版每月可使用 $limit 次拍照辨識。下個月 1 號重置，或升級 Pro 解鎖無限次數。",
+                text = "本月的拍照辨識已經用完。每月可以使用 $limit 次，1 號重新開放。在那之前可以手動新增票券。",
                 style = MaterialTheme.typography.bodyMedium
             )
         },
         confirmButton = {
-            TextButton(onClick = onUpgradeClick) {
+            TextButton(onClick = onDismiss) {
                 Text(
-                    text = "了解 Pro",
+                    text = "知道了",
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("知道了")
             }
         }
     )
