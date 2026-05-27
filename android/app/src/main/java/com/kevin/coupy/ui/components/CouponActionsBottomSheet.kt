@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,16 +32,15 @@ import com.kevin.coupy.ui.screen.list.CouponListItem
 import com.kevin.coupy.ui.util.formatExpireDate
 
 /**
- * 長按票券卡片時出現的底部動作選單。
+ * 長按票券卡片或點右側三個點時出現的底部動作選單。
  *
- * 三個動作：使用、編輯、刪除。
+ * 兩個動作：編輯、刪除。（使用票券改由直接點卡片觸發）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CouponActionsBottomSheet(
     item: CouponListItem,
     onDismiss: () -> Unit,
-    onUseClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
@@ -87,11 +85,6 @@ fun CouponActionsBottomSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            ActionRow(
-                icon = Icons.Default.Check,
-                label = if (item.quantity > 1) "使用票券" else "使用此張",
-                onClick = onUseClick
-            )
             ActionRow(
                 icon = Icons.Default.Edit,
                 label = "編輯",

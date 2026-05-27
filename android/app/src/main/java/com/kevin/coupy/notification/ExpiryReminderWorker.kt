@@ -15,45 +15,57 @@ import androidx.work.WorkerParameters
 import com.kevin.coupy.MainActivity
 import com.kevin.coupy.R
 import com.kevin.coupy.data.CouponRepository
+import com.kevin.coupy.data.notification.ExpiryReminderPreferenceRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 /**
  * 每日檢查即將到期的票券並發送推播。
  *
- * 固定 7 天前一次。沒有票券即將到期就不發。
+ * 觸發時機由使用者偏好決定：到期前 1 / 3 / 7 / 30 天可多選（預設 3 + 7）。
+ * 沒有任何票券剛好命中啟用的天數，就不發推播。
  */
 @HiltWorker
 class ExpiryReminderWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val couponRepository: CouponRepository
+    private val couponRepository: CouponRepository,
+    private val preferenceRepository: ExpiryReminderPreferenceRepository
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
         return try {
-            val today = LocalDate.now()
-            val expiringSoon = couponRepository.observeExpiringSoon(today).first()
-
-            if (expiringSoon.isEmpty()) {
+            val enabledDays = preferenceRepository.enabledDays.first()
+            if (enabledDays.isEmpty()) {
                 return Result.success()
             }
 
-            val totalQuantity = expiringSoon.sumOf { it.quantity }
-            val recordCount = expiringSoon.size
-            val nearest = expiringSoon.minBy { it.expireDate }
-            val nearestDays = java.time.temporal.ChronoUnit.DAYS
-                .between(today, nearest.expireDate)
+            val today = LocalDate.now()
+            // 票券到期日 - 今天 == 任一勾選天數，才命中
+            val matching = couponRepository.observeActive().first()
+                .mapNotNull { coupon ->
+                    val daysUntil = ChronoUnit.DAYS.between(today, coupon.expireDate).toInt()
+                    if (daysUntil in enabledDays) coupon to daysUntil else null
+                }
+                .sortedBy { it.second }
+
+            if (matching.isEmpty()) {
+                return Result.success()
+            }
+
+            val totalQuantity = matching.sumOf { it.first.quantity }
+            val recordCount = matching.size
+            val (mostUrgent, mostUrgentDays) = matching.first()
 
             val title = "$totalQuantity 張票券即將到期"
             val text = buildString {
                 append(
-                    when (nearestDays) {
-                        0L -> "「${nearest.name}」今天到期"
-                        1L -> "「${nearest.name}」明天到期"
-                        else -> "「${nearest.name}」${nearestDays} 天後到期"
+                    when (mostUrgentDays) {
+                        1 -> "「${mostUrgent.name}」明天到期"
+                        else -> "「${mostUrgent.name}」$mostUrgentDays 天後到期"
                     }
                 )
                 if (recordCount > 1) append("，還有 ${recordCount - 1} 張即將到期")

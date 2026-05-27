@@ -52,8 +52,8 @@ import com.kevin.coupy.ui.components.UseTicketsDialog
  *
  * - 上方：搜尋框
  * - 中段：票券列表
- * - 點卡片 → 進編輯畫面
- * - 長按卡片 → 底部 bottom sheet（使用 / 編輯 / 刪除）
+ * - 點卡片 → 使用票券對話框
+ * - 長按卡片 / 點右側三個點 → 底部 bottom sheet（編輯 / 刪除）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -139,7 +139,7 @@ fun CouponListScreen(
                         items(items = uiState.items, key = { it.id }) { item ->
                             CouponCard(
                                 item = item,
-                                onClick = { onCouponClick(item.id) },
+                                onClick = { useDialogItem = item },
                                 onLongClick = { actionSheetItem = item },
                                 onMoreClick = { actionSheetItem = item }
                             )
@@ -156,10 +156,6 @@ fun CouponListScreen(
         CouponActionsBottomSheet(
             item = item,
             onDismiss = { actionSheetItem = null },
-            onUseClick = {
-                useDialogItem = item
-                actionSheetItem = null
-            },
             onEditClick = {
                 actionSheetItem = null
                 onCouponClick(item.id)

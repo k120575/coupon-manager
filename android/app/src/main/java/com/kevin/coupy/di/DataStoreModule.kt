@@ -21,6 +21,7 @@ import javax.inject.Singleton
  * - 分類自訂名稱（CategoryRepository 用）
  * - 主題偏好（ThemePreferenceRepository 用）
  * - OCR 用量計數（OcrUsageTracker 用）
+ * - 到期提醒勾選（ExpiryReminderPreferenceRepository 用）
  */
 @Module
 @InstallIn(SingletonComponent::class)

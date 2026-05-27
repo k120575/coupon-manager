@@ -18,7 +18,10 @@ import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -44,7 +47,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevin.coupy.data.notification.ExpiryReminderPreferenceRepository
 import com.kevin.coupy.data.theme.ThemeMode
+import com.kevin.coupy.ui.screen.settings.ExpiryReminderViewModel
 import com.kevin.coupy.ui.theme.ThemeViewModel
 
 /**
@@ -52,6 +57,7 @@ import com.kevin.coupy.ui.theme.ThemeViewModel
  *
  * 直接列出所有設定項目，沒有獨立中間頁：
  *     ☀️ 顯示外觀
+ *     🔔 到期提醒
  *     📁 分類管理
  *     💾 資料備份
  *     ☕ 請我喝杯咖啡
@@ -65,10 +71,13 @@ fun MineScreen(
     onBackupClick: () -> Unit,
     onDonateClick: () -> Unit,
     onAboutClick: () -> Unit,
-    themeViewModel: ThemeViewModel = hiltViewModel()
+    themeViewModel: ThemeViewModel = hiltViewModel(),
+    expiryReminderViewModel: ExpiryReminderViewModel = hiltViewModel()
 ) {
     val themeMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
+    val enabledReminderDays by expiryReminderViewModel.enabledDays.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showReminderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -107,6 +116,13 @@ fun MineScreen(
                         title = "顯示外觀",
                         subtitle = themeMode.displayName,
                         onClick = { showThemeDialog = true }
+                    )
+                    RowDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Notifications,
+                        title = "到期提醒",
+                        subtitle = reminderSubtitle(enabledReminderDays),
+                        onClick = { showReminderDialog = true }
                     )
                     RowDivider()
                     SettingsRow(
@@ -162,7 +178,21 @@ fun MineScreen(
                 }
             )
         }
+
+        if (showReminderDialog) {
+            ExpiryReminderDialog(
+                enabledDays = enabledReminderDays,
+                onToggle = expiryReminderViewModel::toggleDay,
+                onDismiss = { showReminderDialog = false }
+            )
+        }
     }
+}
+
+private fun reminderSubtitle(enabledDays: Set<Int>): String {
+    if (enabledDays.isEmpty()) return "未開啟"
+    val sorted = enabledDays.sorted().joinToString("、") { "${it}天" }
+    return "到期前 $sorted 提醒"
 }
 
 @Composable
@@ -218,6 +248,62 @@ private fun SettingsRow(
             )
         }
     }
+}
+
+@Composable
+private fun ExpiryReminderDialog(
+    enabledDays: Set<Int>,
+    onToggle: (day: Int, enabled: Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "到期提醒", fontWeight = FontWeight.SemiBold)
+        },
+        text = {
+            Column {
+                Text(
+                    text = "勾選想要在到期前幾天收到推播",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                ExpiryReminderPreferenceRepository.OPTIONS.forEach { day ->
+                    val checked = day in enabledDays
+                    Surface(
+                        onClick = { onToggle(day, !checked) },
+                        color = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { onToggle(day, it) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            Text(
+                                text = "到期前 $day 天",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("完成")
+            }
+        }
+    )
 }
 
 @Composable
