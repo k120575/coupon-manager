@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -42,13 +43,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.widget.Toast
+import com.kevin.coupy.BuildConfig
 import com.kevin.coupy.data.notification.ExpiryReminderPreferenceRepository
 import com.kevin.coupy.data.theme.ThemeMode
+import com.kevin.coupy.notification.NotificationScheduler
 import com.kevin.coupy.ui.screen.settings.ExpiryReminderViewModel
 import com.kevin.coupy.ui.theme.ThemeViewModel
 
@@ -78,6 +83,7 @@ fun MineScreen(
     val enabledReminderDays by expiryReminderViewModel.enabledDays.collectAsStateWithLifecycle()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showReminderDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -152,6 +158,22 @@ fun MineScreen(
                         subtitle = "版本資訊與隱私權",
                         onClick = onAboutClick
                     )
+                    if (BuildConfig.DEBUG) {
+                        RowDivider()
+                        SettingsRow(
+                            icon = Icons.Outlined.Science,
+                            title = "🧪 測試到期通知",
+                            subtitle = "立即執行一次 ExpiryReminderWorker（debug only）",
+                            onClick = {
+                                NotificationScheduler.runOnce(context)
+                                Toast.makeText(
+                                    context,
+                                    "已觸發 — 若有票券命中提醒天數，通知將跳出",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    }
                 }
             }
 
