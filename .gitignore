@@ -11,3 +11,9 @@ Thumbs.db
 # 本機產生的 rich menu PNG 檔案太大、LINE 不收（只上 JPG）；PNG 只當預覽
 richmenu-*.png
 
+# Android 簽署金鑰（敏感，遺失即無法更新 App）
+/keystore/
+*.jks
+*.keystore
+keystore.properties
+

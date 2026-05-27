@@ -18,6 +18,15 @@ val localProps = Properties().apply {
 val workerBaseUrl: String = localProps.getProperty("coupy.workerBaseUrl", "")
 val ocrClientToken: String = localProps.getProperty("coupy.ocrToken", "")
 
+// Release 簽署金鑰（從 local.properties 讀，不進 git）。
+// 四個值都填齊才會啟用 release signingConfig；缺值時 release build 會跳簽署錯誤。
+val releaseStoreFilePath: String? = localProps.getProperty("coupy.releaseStoreFile")
+val releaseStorePassword: String? = localProps.getProperty("coupy.releaseStorePassword")
+val releaseKeyAlias: String? = localProps.getProperty("coupy.releaseKeyAlias")
+val releaseKeyPassword: String? = localProps.getProperty("coupy.releaseKeyPassword")
+val hasReleaseSigning = listOf(releaseStoreFilePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+    .all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.kevin.coupy"
     compileSdk = 35
@@ -39,6 +48,17 @@ android {
         buildConfigField("String", "OCR_CLIENT_TOKEN", "\"$ocrClientToken\"")
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -52,6 +72,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
