@@ -28,8 +28,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -43,8 +45,9 @@ import java.time.LocalDate
  * 票券卡片。
  *
  * 視覺：
- * - 即將過期（≤7 天）→ 左側珊瑚紅 4dp 強調條
- * - 已過期 → 同樣的強調條，但日期文字也是珊瑚紅
+ * - 即將過期（≤7 天，未過期）→ 左側珊瑚紅 4dp 強調條 + 日期珊瑚紅（催促行動）
+ * - 已過期 → 無強調條、整張降為灰階（onSurfaceVariant + emoji 降透明度），不再用珊瑚紅，
+ *   因為過期券已不需要催促，撞色反而誤導。日期顯示「已過期 N 天 · 日期」。
  * - 一般 → 無強調條
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -70,8 +73,8 @@ fun CouponCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-            // 左側強調條（即將過期才顯示）
-            if (item.isExpiringSoon || item.isExpired) {
+            // 左側珊瑚紅強調條：只給「即將到期、未過期」用——過期券不催促，不顯示
+            if (item.isExpiringSoon) {
                 Box(
                     modifier = Modifier
                         .width(4.dp)
@@ -86,10 +89,11 @@ fun CouponCard(
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Emoji
+                // Emoji（過期券降透明度，整張看起來變灰）
                 Text(
                     text = item.categoryEmoji,
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = if (item.isExpired) Modifier.alpha(0.55f) else Modifier
                 )
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -100,7 +104,11 @@ fun CouponCard(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = if (item.isExpired) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -123,12 +131,13 @@ fun CouponCard(
                     Text(
                         text = formatExpireDate(item.expireDate, item.daysUntilExpire),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (item.isExpired || item.isExpiringSoon) {
-                            CoupyCoral
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
+                        textAlign = TextAlign.End,
+                        color = when {
+                            item.isExpiringSoon -> CoupyCoral
+                            item.isExpired -> MaterialTheme.colorScheme.onSurfaceVariant
+                            else -> MaterialTheme.colorScheme.onSurface
                         },
-                        fontWeight = if (item.isExpiringSoon || item.isExpired) {
+                        fontWeight = if (item.isExpiringSoon) {
                             FontWeight.SemiBold
                         } else {
                             FontWeight.Normal

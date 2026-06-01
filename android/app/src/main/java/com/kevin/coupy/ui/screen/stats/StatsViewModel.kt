@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.kevin.coupy.data.CouponRepository
 import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.data.category.CategoryRepository
-import com.kevin.coupy.data.dao.CategoryTicketCount
 import com.kevin.coupy.data.entity.CouponEntity
 import com.kevin.coupy.data.isNoExpiration
 import com.kevin.coupy.data.stats.ArchetypeState
@@ -39,32 +38,43 @@ class StatsViewModel @Inject constructor(
             couponRepository.observeActive(),
             couponRepository.observeUsedTicketsAllTime(),
             couponRepository.observeUsedTicketsInRange(monthStart, nextMonthStart),
-            couponRepository.observeCategoryDistribution(),
             categoryRepository.observeAll()
-        ) { active, usedAll, usedMonth, dist, cats ->
-            StatsCoreData(active, usedAll, usedMonth, dist, cats)
+        ) { active, usedAll, usedMonth, cats ->
+            StatsCoreData(active, usedAll, usedMonth, cats)
         }
 
         combine(coreFlow, couponRepository.observeUsageByCategory()) { core, usageByCategory ->
-            val activeCount = core.activeCoupons.sumOf { it.quantity }
             val days: Map<CouponEntity, Long> = core.activeCoupons
                 .filter { !it.expireDate.isNoExpiration() }
                 .associateWith { ChronoUnit.DAYS.between(today, it.expireDate) }
+
+            // 「持有」與分類分佈都排除已過期券——過期未用券是死券，不該灌水持有量。
+            // 未過期 = 無期限 sentinel，或到期日 >= 今天。
+            val notExpired = core.activeCoupons.filter {
+                it.expireDate.isNoExpiration() ||
+                    ChronoUnit.DAYS.between(today, it.expireDate) >= 0
+            }
+            val activeCount = notExpired.sumOf { it.quantity }
 
             val foreverCount = core.activeCoupons
                 .filter { it.expireDate.isNoExpiration() }
                 .sumOf { it.quantity }
 
             val categoryById = core.categories.associateBy { it.id }
-            val totalForBars = core.distribution.sumOf { it.total }.coerceAtLeast(1)
-            val bars = core.distribution.map { row ->
-                val cat = categoryById[row.category]
+            // 分類分佈改用未過期券在記憶體分組（等同 DAO 的 GROUP BY，但排除過期）
+            val distByCategory = notExpired
+                .groupBy { it.category }
+                .map { (catId, list) -> catId to list.sumOf { it.quantity } }
+                .sortedByDescending { it.second }
+            val totalForBars = distByCategory.sumOf { it.second }.coerceAtLeast(1)
+            val bars = distByCategory.map { (catId, total) ->
+                val cat = categoryById[catId]
                 CategoryBar(
-                    categoryId = row.category,
-                    displayName = cat?.displayName ?: row.category,
+                    categoryId = catId,
+                    displayName = cat?.displayName ?: catId,
                     emoji = cat?.emoji ?: "📌",
-                    count = row.total,
-                    percentage = row.total.toFloat() / totalForBars
+                    count = total,
+                    percentage = total.toFloat() / totalForBars
                 )
             }
 
@@ -100,7 +110,6 @@ private data class StatsCoreData(
     val activeCoupons: List<CouponEntity>,
     val usedAllTime: Int,
     val usedThisMonth: Int,
-    val distribution: List<CategoryTicketCount>,
     val categories: List<Category>
 )
 

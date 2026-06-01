@@ -122,9 +122,9 @@ fun DonateScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 DonationProduct.entries.forEach { product ->
                     OutlinedButton(
@@ -137,23 +137,26 @@ fun DonateScreen(
                             }
                         },
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = product.emoji,
-                                fontSize = 18.sp
+                                fontSize = 20.sp
                             )
-                            Spacer(modifier = Modifier.size(2.dp))
+                            Spacer(modifier = Modifier.size(10.dp))
                             Text(
                                 text = product.priceLabel,
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
                             )
                         }
                     }

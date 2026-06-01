@@ -118,7 +118,7 @@ fun HomeScreen(
                     }
                 }
             } else if (!uiState.isLoading) {
-                if (uiState.totalTicketCount == 0) {
+                if (!uiState.hasAnyCoupon) {
                     item { NoCouponsHint() }
                 } else {
                     item { ExpiringListHeader() }

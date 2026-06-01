@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -94,6 +95,7 @@ import com.kevin.coupy.data.isNoExpiration
 import com.kevin.coupy.ui.components.DeleteCouponDialog
 import com.kevin.coupy.ui.components.HoldableIconStep
 import com.kevin.coupy.ui.components.UseTicketsDialog
+import com.kevin.coupy.ui.util.clearFocusOnTap
 import java.io.File
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -232,6 +234,11 @@ fun CouponEditScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                // 點輸入框以外的空白處時收起鍵盤
+                .clearFocusOnTap()
+                // 鍵盤跳出時把可捲動區下緣頂到鍵盤上方，
+                // 讓被聚焦的欄位（例如備註）能自動捲到鍵盤之上
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -242,6 +249,7 @@ fun CouponEditScreen(
                     isOcrRunning = isOcrRunning,
                     remaining = ocrUsage.remaining,
                     limit = ocrUsage.limit,
+                    periodLabel = if (ocrUsage.isDaily) "今日" else "本月",
                     onTakePhotoClick = tryTakePhoto,
                     onPickFromGalleryClick = tryPickFromGallery
                 )
@@ -356,6 +364,7 @@ fun CouponEditScreen(
         if (showOcrLimitDialog) {
             OcrLimitReachedDialog(
                 limit = ocrUsage.limit,
+                isDaily = ocrUsage.isDaily,
                 onDismiss = { showOcrLimitDialog = false }
             )
         }
@@ -369,6 +378,7 @@ private fun OcrButtonsRow(
     isOcrRunning: Boolean,
     remaining: Int,
     limit: Int,
+    periodLabel: String,
     onTakePhotoClick: () -> Unit,
     onPickFromGalleryClick: () -> Unit
 ) {
@@ -413,7 +423,7 @@ private fun OcrButtonsRow(
                 )
             } else {
                 Text(
-                    text = "本月 OCR 剩餘 $remaining / $limit 次",
+                    text = "$periodLabel OCR 剩餘 $remaining / $limit 次",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -456,19 +466,24 @@ private fun OcrActionButton(
 @Composable
 private fun OcrLimitReachedDialog(
     limit: Int,
+    isDaily: Boolean,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "本月 OCR 已用完",
+                text = if (isDaily) "今日 OCR 已用完" else "本月 OCR 已用完",
                 fontWeight = FontWeight.SemiBold
             )
         },
         text = {
             Text(
-                text = "本月的拍照辨識已經用完。每月可以使用 $limit 次，1 號重新開放。在那之前可以手動新增票券。",
+                text = if (isDaily) {
+                    "今天的拍照辨識已經用完。每天可以使用 $limit 次，明天重新開放。在那之前可以手動新增票券。"
+                } else {
+                    "本月的拍照辨識已經用完。每月可以使用 $limit 次，1 號重新開放。在那之前可以手動新增票券。"
+                },
                 style = MaterialTheme.typography.bodyMedium
             )
         },

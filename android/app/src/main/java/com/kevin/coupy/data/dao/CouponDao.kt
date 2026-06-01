@@ -139,6 +139,14 @@ interface CouponDao {
     @Query("UPDATE coupons SET status = 'deleted' WHERE id = :id")
     suspend fun softDelete(id: Long)
 
+    /**
+     * 批次軟刪除所有已過期的 active 票券（清單「清除全部已過期」用）。
+     * expire_date 以 ISO 字串儲存，字典序比較對 ISO 日期成立；
+     * 無期限 sentinel '9999-12-31' 永遠 > today，自動排除。
+     */
+    @Query("UPDATE coupons SET status = 'deleted' WHERE status = 'active' AND expire_date < :today")
+    suspend fun softDeleteExpired(today: String)
+
     /** 取回已刪除（給未來「資源回收筒」用，現在 UI 不暴露）*/
     @Query("SELECT * FROM coupons WHERE status = 'deleted' ORDER BY id DESC")
     fun observeDeleted(): Flow<List<CouponEntity>>

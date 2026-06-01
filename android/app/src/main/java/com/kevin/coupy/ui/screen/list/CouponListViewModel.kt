@@ -60,8 +60,16 @@ class CouponListViewModel @Inject constructor(
         val availableForFilter = categories
             .filter { it.id in categoriesWithCoupons || it.id == selectedCat }
 
+        val mapped = filtered.map { it.toListItem(categoryById, today) }
+        // 未過期：維持 DB 的到期日由近到遠排序
+        val activeItems = mapped.filter { !it.isExpired }
+        // 已過期：最近才過期的排前面（-1 在 -30 前），讓「可能還能救」的浮上來
+        val expiredItems = mapped.filter { it.isExpired }
+            .sortedByDescending { it.daysUntilExpire }
+
         CouponListUiState(
-            items = filtered.map { it.toListItem(categoryById, today) },
+            activeItems = activeItems,
+            expiredItems = expiredItems,
             totalCount = coupons.size,
             availableCategories = availableForFilter,
             isLoading = false,
@@ -96,12 +104,22 @@ class CouponListViewModel @Inject constructor(
             couponRepository.delete(id)
         }
     }
+
+    /** 一鍵清除所有已過期票券（軟刪除，未來若做回收筒仍可救回）*/
+    fun deleteAllExpired() {
+        viewModelScope.launch {
+            couponRepository.deleteAllExpired(LocalDate.now())
+        }
+    }
 }
 
 // ===== UI State =====
 
 data class CouponListUiState(
-    val items: List<CouponListItem> = emptyList(),
+    /** 未過期票券（含即將到期 + 一般），顯示在清單上方 */
+    val activeItems: List<CouponListItem> = emptyList(),
+    /** 已過期票券，收進清單底部可收合區 */
+    val expiredItems: List<CouponListItem> = emptyList(),
     val totalCount: Int = 0,
     val availableCategories: List<Category> = emptyList(),
     val isLoading: Boolean = false,
@@ -111,9 +129,10 @@ data class CouponListUiState(
     /** 完全沒票券（不管有沒有搜尋）*/
     val hasNoCoupons: Boolean get() = !isLoading && totalCount == 0
 
-    /** 有票券但搜尋/篩選無結果 */
+    /** 有票券但搜尋/篩選無結果（含已過期也沒中）*/
     val hasNoSearchResults: Boolean
-        get() = !isLoading && isSearching && items.isEmpty() && totalCount > 0
+        get() = !isLoading && isSearching &&
+            activeItems.isEmpty() && expiredItems.isEmpty() && totalCount > 0
 }
 
 /**

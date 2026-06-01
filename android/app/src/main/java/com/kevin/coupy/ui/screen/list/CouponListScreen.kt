@@ -1,9 +1,11 @@
 package com.kevin.coupy.ui.screen.list
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,17 +18,22 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.LocalActivity
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,6 +53,7 @@ import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.ui.components.CouponActionsBottomSheet
 import com.kevin.coupy.ui.components.DeleteCouponDialog
 import com.kevin.coupy.ui.components.UseTicketsDialog
+import com.kevin.coupy.ui.util.clearFocusOnTap
 
 /**
  * 票券 tab：完整 active 票券列表。
@@ -69,6 +77,8 @@ fun CouponListScreen(
     var actionSheetItem by remember { mutableStateOf<CouponListItem?>(null) }
     var useDialogItem by remember { mutableStateOf<CouponListItem?>(null) }
     var deleteDialogItem by remember { mutableStateOf<CouponListItem?>(null) }
+    var expiredExpanded by remember { mutableStateOf(false) }
+    var showClearExpiredDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -93,6 +103,8 @@ fun CouponListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(scaffoldPadding)
+                // 點搜尋框以外的空白處時收起鍵盤
+                .clearFocusOnTap()
         ) {
             SearchBar(
                 query = searchQuery,
@@ -128,6 +140,7 @@ fun CouponListScreen(
                     )
                 }
                 else -> {
+                    val expired = uiState.expiredItems
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
@@ -136,13 +149,35 @@ fun CouponListScreen(
                         ),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(items = uiState.items, key = { it.id }) { item ->
+                        items(items = uiState.activeItems, key = { it.id }) { item ->
                             CouponCard(
                                 item = item,
                                 onClick = { useDialogItem = item },
                                 onLongClick = { actionSheetItem = item },
                                 onMoreClick = { actionSheetItem = item }
                             )
+                        }
+
+                        // 底部「已過期」可收合區（預設收合）
+                        if (expired.isNotEmpty()) {
+                            item(key = "__expired_header__") {
+                                ExpiredSectionHeader(
+                                    count = expired.size,
+                                    expanded = expiredExpanded,
+                                    onToggle = { expiredExpanded = !expiredExpanded },
+                                    onClearAll = { showClearExpiredDialog = true }
+                                )
+                            }
+                            if (expiredExpanded) {
+                                items(items = expired, key = { it.id }) { item ->
+                                    CouponCard(
+                                        item = item,
+                                        onClick = { useDialogItem = item },
+                                        onLongClick = { actionSheetItem = item },
+                                        onMoreClick = { actionSheetItem = item }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -188,6 +223,76 @@ fun CouponListScreen(
                 deleteDialogItem = null
             }
         )
+    }
+
+    if (showClearExpiredDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearExpiredDialog = false },
+            title = { Text("清除已過期票券", fontWeight = FontWeight.SemiBold) },
+            text = { Text("將刪除這 ${uiState.expiredItems.size} 筆已過期票券，刪除後無法復原。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteAllExpired()
+                    showClearExpiredDialog = false
+                }) {
+                    Text("清除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearExpiredDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+}
+
+/**
+ * 「已過期」區塊標題列：可點擊展開/收合，右側「清除全部」。
+ * 整列灰階（onSurfaceVariant），跟未過期內容做視覺區隔。
+ */
+@Composable
+private fun ExpiredSectionHeader(
+    count: Int,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onClearAll: () -> Unit
+) {
+    Column {
+        Spacer(modifier = Modifier.height(4.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onToggle)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = if (expanded) {
+                        Icons.Default.KeyboardArrowUp
+                    } else {
+                        Icons.Default.KeyboardArrowDown
+                    },
+                    contentDescription = if (expanded) "收合" else "展開",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.size(4.dp))
+                Text(
+                    text = "已過期 ($count)",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = onClearAll) {
+                Text("清除全部", color = MaterialTheme.colorScheme.error)
+            }
+        }
     }
 }
 

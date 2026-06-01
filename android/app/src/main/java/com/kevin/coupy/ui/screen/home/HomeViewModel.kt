@@ -39,9 +39,15 @@ class HomeViewModel @Inject constructor(
             ChronoUnit.DAYS.between(today, it.expireDate)
         }
 
+        // 「目前持有」排除已過期券（過期未用券是死券，不該灌水持有量）。
+        // days >= 0 涵蓋今天/未來到期 + 無期限 sentinel（巨大正數）；< 0 才是過期。
+        val notExpired = coupons.filter { (daysMap[it] ?: 0L) >= 0L }
+
         HomeUiState(
-            totalTicketCount = coupons.sumOf { it.quantity },
-            distinctCategoryCount = coupons.map { it.category }.distinct().size,
+            totalTicketCount = notExpired.sumOf { it.quantity },
+            distinctCategoryCount = notExpired.map { it.category }.distinct().size,
+            // 是否有任何 active 票券（含過期）——用來區分「完全沒券」vs「只剩過期券」
+            hasAnyCoupon = coupons.isNotEmpty(),
             // 非重疊分桶：每張票券落在唯一一個區間。
             // UI 標籤用「3 天內 / 7 天內 / 30 天內」是因為這是使用者最直覺的講法，
             // 即使對應的實際區間是 0-3 / 4-7 / 8-30。
@@ -72,6 +78,7 @@ class HomeViewModel @Inject constructor(
 // ===== UI State =====
 
 data class HomeUiState(
+    /** 目前持有張數——已排除過期券 */
     val totalTicketCount: Int = 0,
     val distinctCategoryCount: Int = 0,
     val expiringIn3Count: Int = 0,
@@ -79,10 +86,12 @@ data class HomeUiState(
     val expiringIn30Count: Int = 0,
     val expiredCount: Int = 0,
     val topExpiring: List<CouponListItem> = emptyList(),
+    /** 是否有任何 active 票券（含過期）——區分「完全沒券」vs「只剩過期券」 */
+    val hasAnyCoupon: Boolean = false,
     val isLoading: Boolean = false
 ) {
     val hasNoCoupons: Boolean
-        get() = !isLoading && totalTicketCount == 0
+        get() = !isLoading && !hasAnyCoupon
 }
 
 // ===== mapper =====

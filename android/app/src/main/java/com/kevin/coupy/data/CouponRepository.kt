@@ -91,4 +91,8 @@ class CouponRepository @Inject constructor(
     }
 
     suspend fun delete(id: Long) = dao.softDelete(id)
+
+    /** 一鍵清除所有已過期票券（軟刪除）*/
+    suspend fun deleteAllExpired(today: java.time.LocalDate) =
+        dao.softDeleteExpired(today.toString())
 }

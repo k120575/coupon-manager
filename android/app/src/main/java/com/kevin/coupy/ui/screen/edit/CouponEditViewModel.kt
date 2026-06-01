@@ -61,7 +61,11 @@ class CouponEditViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = MonthlyUsage(count = 0, limit = OcrUsageTracker.MONTHLY_LIMIT)
+            initialValue = MonthlyUsage(
+                count = 0,
+                limit = OcrUsageTracker.CURRENT_LIMIT,
+                isDaily = OcrUsageTracker.IS_DAILY
+            )
         )
 
     private val _isOcrRunning = MutableStateFlow(false)
