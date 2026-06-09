@@ -158,7 +158,7 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
 若圖中沒有可辨識的票券資訊，全部欄位回 null。
 若辨識到多張，只回傳第一張的資訊。`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey.trim()}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey.trim()}`;
 
   // AbortController 控制 timeout——Workers 的 fetch 沒有內建 timeout
   const controller = new AbortController();
