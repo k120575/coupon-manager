@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>券管家 Coupy — Logo 提案 v4（加寬＋安全區）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #EEF0F3;
+    font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    color: #2A2F36; padding: 36px 20px 80px; line-height: 1.6;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .sub { color: #7A828C; font-size: 14px; margin-bottom: 24px; }
+  .card {
+    background: #fff; border-radius: 18px; padding: 26px 28px; margin-bottom: 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: grid;
+    grid-template-columns: 1fr; gap: 18px; outline: 2px solid #4CAE9C;
+  }
+  .card-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .badge {
+    background: #4CAE9C; color: #fff; font-weight: 700; font-size: 15px;
+    width: 30px; height: 30px; border-radius: 9px; display: inline-flex;
+    align-items: center; justify-content: center; flex: 0 0 auto;
+  }
+  .card-head h2 { font-size: 18px; }
+  .card-head .tag { font-size: 12px; color: #2E8B73; background: #E3F5EF; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .desc { font-size: 13px; color: #5A626B; max-width: 800px; }
+  .row { display: flex; gap: 30px; align-items: flex-end; flex-wrap: wrap; }
+  .blk { text-align: center; }
+  .blk canvas { display: block; margin: 0 auto 7px; }
+  .blk .lbl { font-size: 11px; color: #9AA1A9; }
+  .squircle { border-radius: 23%; }
+  .circle { border-radius: 50%; }
+  .shadow { box-shadow: 0 3px 10px rgba(0,0,0,0.14); }
+  .wallpaper { padding: 14px; border-radius: 16px; background: linear-gradient(135deg, #3a6ea5, #4cae9c 60%, #2e8b73); display: inline-block; }
+  .legend { background:#fff; border-radius:14px; padding:16px 20px; margin-bottom:24px; font-size:13px; color:#5A626B; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
+  .legend b { color:#2A2F36; }
+  .legend .r { color:#E0524B; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>券管家 Coupy — Logo 提案 v4</h1>
+  <p class="sub">只留 #2、#9。票券 50（寬）× 36（高）。新增「安全區檢查」欄。</p>
+
+  <div class="legend">
+    <b>安全區檢查</b>那欄的 <span class="r">紅色虛線圈</span> = Android 保證不會被切的中央安全圓。<br>
+    只要票券和符號都在紅圈<b>內</b>，在任何手機（圓形、方角、水滴形遮罩）都<b>不會被切掉</b>。你看 —— 票券四個角都剛好收在圈內。
+  </div>
+  <div id="cards"></div>
+</div>
+
+<script>
+const BLUE = '#4A89DC', WHITE = '#FFFFFF';
+const SAFE_R = 30.5; // 中央安全圓半徑（%），66/108/2≈30.5
+
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+// 票券 50（寬）x 36（高），圓角 7，側邊缺口
+function ticket(ctx, U, bg) {
+  ctx.fillStyle = WHITE; rr(ctx,25*U,32*U,50*U,36*U,7*U); ctx.fill();
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.arc(25*U,50*U,4*U,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(75*U,50*U,4*U,0,7); ctx.fill();
+}
+function percent(ctx, U, cx, cy, sc, color) {
+  ctx.strokeStyle = color; ctx.lineCap = 'round';
+  ctx.lineWidth = 3.4*sc*U;
+  ctx.beginPath(); ctx.moveTo((cx+7*sc)*U,(cy-7*sc)*U); ctx.lineTo((cx-7*sc)*U,(cy+7*sc)*U); ctx.stroke();
+  ctx.lineWidth = 2.1*sc*U;
+  ctx.beginPath(); ctx.arc((cx-6*sc)*U,(cy-6*sc)*U,3.3*sc*U,0,7); ctx.stroke();
+  ctx.beginPath(); ctx.arc((cx+6*sc)*U,(cy+6*sc)*U,3.3*sc*U,0,7); ctx.stroke();
+}
+
+const CONCEPTS = [
+  {
+    id:2, name:'折扣・%券', tag:'50×36', bg:BLUE,
+    desc:'票券＋粗體「%」，% 置中。',
+    draw(ctx,U,bg){ ticket(ctx,U,bg); percent(ctx,U,50,50,1.3,BLUE); }
+  },
+  {
+    id:9, name:'剪券・優惠線', tag:'50×36', bg:BLUE,
+    desc:'剪刀沿虛線剪票券。',
+    draw(ctx,U,bg){
+      ticket(ctx,U,bg);
+      ctx.strokeStyle = BLUE; ctx.lineWidth = 1.9*U; ctx.setLineDash([2.8*U,2.8*U]);
+      ctx.beginPath(); ctx.moveTo(60*U,34*U); ctx.lineTo(60*U,66*U); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 2.6*U; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath(); ctx.moveTo(42*U,50*U); ctx.lineTo(52*U,45*U); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(42*U,50*U); ctx.lineTo(52*U,55*U); ctx.stroke();
+      ctx.lineWidth = 2.1*U;
+      ctx.beginPath(); ctx.arc(38*U,47*U,2.7*U,0,7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(38*U,53*U,2.7*U,0,7); ctx.stroke();
+      ctx.fillStyle = BLUE; ctx.beginPath(); ctx.arc(42*U,50*U,1.5*U,0,7); ctx.fill();
+    }
+  },
+];
+
+function paint(canvas, c, showSafe){
+  const S = canvas.width, U = S/100;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,S,S);
+  ctx.fillStyle = c.bg; ctx.fillRect(0,0,S,S);
+  c.draw(ctx, U, c.bg);
+  if (showSafe){
+    ctx.strokeStyle = 'rgba(224,82,75,0.95)'; ctx.lineWidth = 2;
+    ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.arc(50*U,50*U,SAFE_R*U,0,7); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+const cardsEl = document.getElementById('cards');
+CONCEPTS.forEach(c => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-head">
+      <span class="badge">${c.id}</span>
+      <h2>${c.name}</h2>
+      <span class="tag">${c.tag}</span>
+    </div>
+    <div class="desc">${c.desc}</div>
+    <div class="row">
+      <div class="blk"><canvas class="squircle shadow" width="192" height="192"></canvas><div class="lbl">192 方角</div></div>
+      <div class="blk"><canvas class="circle shadow" width="192" height="192"></canvas><div class="lbl">192 圓形（你的桌面）</div></div>
+      <div class="blk"><canvas class="safezone squircle" width="192" height="192"></canvas><div class="lbl">安全區檢查</div></div>
+      <div class="blk"><canvas class="squircle" width="96" height="96"></canvas><div class="lbl">96</div></div>
+      <div class="blk"><canvas class="squircle" width="48" height="48"></canvas><div class="lbl">48</div></div>
+      <div class="blk"><div class="wallpaper"><canvas class="circle" width="120" height="120"></canvas></div><div class="lbl">桌布實感</div></div>
+    </div>`;
+  cardsEl.appendChild(card);
+  card.querySelectorAll('canvas').forEach(cv => paint(cv, c, cv.classList.contains('safezone')));
+});
+</script>
+</body>
+</html>
