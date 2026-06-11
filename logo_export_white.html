@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>券管家 Coupy - Logo 匯出（D 白底版）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #F0F0F2;
+    font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    color: #333;
+    padding: 32px 20px 80px;
+    line-height: 1.6;
+  }
+  .container { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 6px; font-weight: 700; }
+  .subtitle { color: #888; font-size: 14px; margin-bottom: 28px; }
+
+  .preview-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px; margin-bottom: 32px;
+  }
+  .preview-card {
+    background: white; border-radius: 14px; padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .preview-card h3 { font-size: 14px; font-weight: 600; margin: 0; }
+  .preview-card .hint { font-size: 11px; color: #999; text-align: center; min-height: 28px; }
+  .preview-card canvas { width: 160px; height: 160px; }
+  .preview-card.transparent canvas {
+    background-image:
+      linear-gradient(45deg, #e8e8e8 25%, transparent 25%),
+      linear-gradient(-45deg, #e8e8e8 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e8e8e8 75%),
+      linear-gradient(-45deg, transparent 75%, #e8e8e8 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  }
+  .preview-card button {
+    background: #4A89DC; color: white; border: none;
+    padding: 8px 16px; border-radius: 8px; font-size: 13px;
+    cursor: pointer; font-weight: 600; width: 100%; transition: 0.15s;
+  }
+  .preview-card button:hover { background: #3B78CB; }
+
+  .size-row {
+    display: flex; gap: 32px; align-items: flex-end; justify-content: center;
+    background: white; border-radius: 14px; padding: 24px; margin-bottom: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .size-row .size-block { text-align: center; }
+  .size-row canvas { display: block; margin: 0 auto 8px; box-shadow: 0 0 0 1px #E5E5E5; border-radius: 22%; }
+  .size-row .size-label { font-size: 12px; color: #888; }
+
+  .guide {
+    background: white; border-radius: 14px; padding: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .guide h2 { font-size: 18px; margin-bottom: 16px; }
+  .guide code {
+    background: #F0F0F2; padding: 2px 8px; border-radius: 4px;
+    font-family: Consolas, monospace; font-size: 13px;
+  }
+  .guide .step-block { margin-bottom: 16px; padding: 16px; background: #FAFAFA; border-radius: 10px; border-left: 4px solid #4A89DC; }
+  .guide .step-block h3 { font-size: 15px; margin-bottom: 8px; color: #4A89DC; }
+  .guide .step-block ol { margin-left: 20px; }
+  .guide .step-block li { margin-bottom: 6px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>券管家 Coupy - Logo 匯出（D 白底版）</h1>
+  <p class="subtitle">白底 #FAFAFA + 珊瑚紅/青綠票券。跟手機桌面 icon 一致。點按鈕下載 512 PNG 上傳到 Play Console。</p>
+
+  <h2 style="font-size: 16px; margin-bottom: 12px;">尺寸即時預覽（48px / 96px / 192px）</h2>
+  <div class="size-row">
+    <div class="size-block">
+      <canvas id="preview48" width="48" height="48"></canvas>
+      <div class="size-label">48px<br>(Play 商店列表)</div>
+    </div>
+    <div class="size-block">
+      <canvas id="preview96" width="96" height="96"></canvas>
+      <div class="size-label">96px<br>(通知列)</div>
+    </div>
+    <div class="size-block">
+      <canvas id="preview192" width="192" height="192"></canvas>
+      <div class="size-label">192px<br>(手機桌面)</div>
+    </div>
+  </div>
+
+  <h2 style="font-size: 16px; margin-bottom: 12px;">下載</h2>
+  <div class="preview-row">
+    <div class="preview-card">
+      <h3>Play Store Icon ★</h3>
+      <canvas id="storeCanvas" width="512" height="512"></canvas>
+      <p class="hint">512×512 PNG 白底<br>Play Console 商店列表用（就上傳這張）</p>
+      <button onclick="download('storeCanvas', 'coupy_play_store_512_white.png')">下載 512 Play Store PNG</button>
+    </div>
+    <div class="preview-card transparent">
+      <h3>Foreground (透明背景)</h3>
+      <canvas id="fgCanvas" width="432" height="432"></canvas>
+      <p class="hint">432×432 PNG 透明<br>備用（App 內 icon 已改好，這個用不到）</p>
+      <button onclick="download('fgCanvas', 'coupy_foreground_432.png')">下載 Foreground PNG</button>
+    </div>
+    <div class="preview-card">
+      <h3>高解析完整版</h3>
+      <canvas id="hiresCanvas" width="1024" height="1024"></canvas>
+      <p class="hint">1024×1024 PNG 白底<br>備用 / 行銷素材</p>
+      <button onclick="download('hiresCanvas', 'coupy_hires_1024_white.png')">下載 1024 PNG</button>
+    </div>
+  </div>
+
+  <div class="guide">
+    <h2>上傳到 Play Console</h2>
+    <div class="step-block">
+      <h3>步驟 1：下載 512 PNG</h3>
+      <p>點上方「下載 512 Play Store PNG」，得到 <code>coupy_play_store_512_white.png</code>。</p>
+    </div>
+    <div class="step-block">
+      <h3>步驟 2：上傳</h3>
+      <ol>
+        <li>Play Console → <code>成長 → 商店發布資訊 → 主要商店資訊</code></li>
+        <li>找到「應用程式圖示」欄位，換上這張 512 PNG</li>
+        <li>拉到最下面按「儲存」，等審核通過</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+const frontColor = '#4ECDC4';
+const backColor = '#FF6B6B';
+const bgColor = '#FAFAFA';      // 白底版（D 版），跟手機桌面 ic_launcher_background 一致
+const whiteColor = '#FFFFFF';
+
+function roundedRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawLogo(ctx, size, opts) {
+  const padding = opts.padding || 0;
+  const drawSize = size * (1 - padding * 2);
+  const offsetXY = size * padding;
+  const s = drawSize / 108;
+
+  ctx.clearRect(0, 0, size, size);
+
+  if (opts.bg === 'fill') {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, size, size);
+  }
+
+  ctx.save();
+  ctx.translate(offsetXY, offsetXY);
+
+  // Back ticket (rotate 8deg around 54,58)
+  ctx.save();
+  ctx.translate(54 * s, 58 * s);
+  ctx.rotate(8 * Math.PI / 180);
+  ctx.translate(-54 * s, -58 * s);
+  ctx.fillStyle = backColor;
+  roundedRect(ctx, 26 * s, 46 * s, 56 * s, 24 * s, 4 * s);
+  ctx.fill();
+  if (opts.bg === 'transparent') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath(); ctx.arc(26 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(82 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.beginPath(); ctx.arc(26 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(82 * s, 58 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+
+  // Front ticket (rotate -3deg around 54,62)
+  ctx.save();
+  ctx.translate(54 * s, 62 * s);
+  ctx.rotate(-3 * Math.PI / 180);
+  ctx.translate(-54 * s, -62 * s);
+  ctx.fillStyle = frontColor;
+  roundedRect(ctx, 22 * s, 50 * s, 56 * s, 24 * s, 4 * s);
+  ctx.fill();
+  if (opts.bg === 'transparent') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath(); ctx.arc(22 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(78 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.beginPath(); ctx.arc(22 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(78 * s, 62 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  }
+  // Check mark
+  ctx.strokeStyle = whiteColor;
+  ctx.lineWidth = 3 * s;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(44 * s, 62 * s);
+  ctx.lineTo(50 * s, 68 * s);
+  ctx.lineTo(62 * s, 55 * s);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+function renderAll() {
+  drawLogo(document.getElementById('fgCanvas').getContext('2d'), 432, { bg: 'transparent', padding: 0 });
+  drawLogo(document.getElementById('storeCanvas').getContext('2d'), 512, { bg: 'fill' });
+  drawLogo(document.getElementById('hiresCanvas').getContext('2d'), 1024, { bg: 'fill' });
+  drawLogo(document.getElementById('preview48').getContext('2d'), 48, { bg: 'fill' });
+  drawLogo(document.getElementById('preview96').getContext('2d'), 96, { bg: 'fill' });
+  drawLogo(document.getElementById('preview192').getContext('2d'), 192, { bg: 'fill' });
+}
+
+function download(canvasId, filename) {
+  const canvas = document.getElementById(canvasId);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+renderAll();
+</script>
+</body>
+</html>
