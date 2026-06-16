@@ -43,6 +43,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -76,6 +77,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -628,8 +630,15 @@ private fun ExpireDateField(
         val initialMillis = remember(value) {
             value.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         }
+        // 矮螢幕（含顯示放大、橫向）月曆會超出對話框被裁切。Material3 DatePicker
+        // 內建「輸入框」模式（右上角鉛筆可切換），矮螢幕直接預設用它，正常手機維持月曆。
+        // screenHeightDp 會隨顯示/字體放大而變小，所以放大顯示的使用者也會自動落進輸入框模式。
+        val initialDisplayMode =
+            if (LocalConfiguration.current.screenHeightDp < 640) DisplayMode.Input
+            else DisplayMode.Picker
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = initialMillis,
+            initialDisplayMode = initialDisplayMode,
             // 不允許選過去日期
             selectableDates = object : androidx.compose.material3.SelectableDates {
                 override fun isSelectableDate(utcTimeMillis: Long): Boolean {
