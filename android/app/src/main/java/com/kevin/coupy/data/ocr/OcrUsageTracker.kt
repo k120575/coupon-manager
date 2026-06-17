@@ -72,7 +72,7 @@ class OcrUsageTracker @Inject constructor(
     }
 
     companion object {
-        const val MONTHLY_LIMIT = 5
+        const val MONTHLY_LIMIT = 15
         const val DEBUG_DAILY_LIMIT = 20
 
         /** Debug build 改成每日計次、每天 20 次 */

@@ -17,5 +17,11 @@ database_id = "214883de-64e2-4bbf-b402-3e6a9bc9a4c5"
 #   GEMINI_API_KEY
 #   OCR_CLIENT_SECRET    # App 端 OCR 共用密鑰（也要設在 App local.properties 的 coupy.ocrToken）
 
+# App 端 OCR 的 Gemini 模型優先鏈（逗號分隔，非機密所以放這不放 secret）。
+# 第一個是主力，遇到限流/過載/5xx/模型不存在/超時會自動退到下一個。
+# 便宜夠用的（flash-lite）擺前面當主力，強模型殿後當備援。
+[vars]
+OCR_MODELS = "gemini-3.1-flash-lite,gemini-2.5-flash,gemini-3.5-flash"
+
 [observability]
 enabled = true

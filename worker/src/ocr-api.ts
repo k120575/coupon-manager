@@ -68,10 +68,29 @@ const APP_CATEGORY_IDS = [
 type AppCategoryId = (typeof APP_CATEGORY_IDS)[number];
 
 /**
- * Gemini fetch 超時。設 55s 留 5s 給 Worker 自身 overhead，
+ * 整條模型鏈共用的總時間預算。設 55s 留 5s 給 Worker 自身 overhead，
  * 比 App 端 readTimeout (60s) 短一點，讓我們先 abort 並回 ai_timeout 而不是讓 App socket timeout。
+ * 多模型 fallback 時，這 55s 是「全部嘗試加起來」的上限，不是每個模型各自 55s。
  */
-const GEMINI_TIMEOUT_MS = 55_000;
+const GEMINI_TOTAL_BUDGET_MS = 55_000;
+
+/** 單一模型單次嘗試的上限；實際還會被「剩餘總預算」夾住，取兩者較小值。 */
+const PER_MODEL_TIMEOUT_MS = 25_000;
+
+/** 剩餘總預算低於此值就不再開新嘗試（避免開了一個注定 timeout 的請求）。 */
+const MIN_ATTEMPT_MS = 8_000;
+
+/** 未設定 env.OCR_MODELS 時退回的單一模型。 */
+const DEFAULT_OCR_MODEL = 'gemini-3.1-flash-lite';
+
+/** 解析 env.OCR_MODELS（逗號分隔）成優先鏈；空值退回單一預設。 */
+function resolveModels(raw: string | undefined): string[] {
+  const chain = (raw ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return chain.length ? chain : [DEFAULT_OCR_MODEL];
+}
 
 export async function handleAppOcr(request: Request, env: Env): Promise<Response> {
   // === Auth ===
@@ -100,9 +119,10 @@ export async function handleAppOcr(request: Request, env: Env): Promise<Response
     return errorResponse('image_too_large', 413);
   }
 
-  // === 呼叫 Gemini ===
+  // === 呼叫 Gemini（依模型鏈依序嘗試）===
   try {
-    const result = await callGeminiForApp(env.GEMINI_API_KEY, bytes, contentType);
+    const models = resolveModels(env.OCR_MODELS);
+    const result = await callGeminiForApp(env.GEMINI_API_KEY, bytes, contentType, models);
     return jsonResponse(result, 200);
   } catch (e) {
     return geminiErrorToResponse(e);
@@ -118,18 +138,70 @@ class GeminiError extends Error {
     public readonly code: OcrErrorCode,
     public readonly status: number,
     message: string,
+    /**
+     * true = 「非我方問題」，換下一個模型可能成功（限流/過載/5xx/模型不存在/超時/網路）。
+     * false = 我方/內容問題，換模型也沒用（圖片被拒、安全過濾、金鑰/權限），直接拋。
+     */
+    public readonly failover: boolean = false,
   ) {
     super(message);
   }
 }
 
+/**
+ * 依模型優先鏈依序嘗試：
+ * - 成功 → 直接回傳。
+ * - 失敗且 [GeminiError.failover] 為 true 且還有下一個模型且還有時間 → 換下一個。
+ * - 否則 → 拋出（交給 [geminiErrorToResponse] 轉對外回應）。
+ *
+ * 時間預算：整條鏈共用 [GEMINI_TOTAL_BUDGET_MS]。每次嘗試拿 min(每模型上限, 剩餘預算)，
+ * 剩餘不足 [MIN_ATTEMPT_MS] 就不再開新嘗試——確保總耗時不超過 App 端 readTimeout。
+ */
 async function callGeminiForApp(
   apiKey: string,
   bytes: ArrayBuffer,
   mimeType: string,
+  models: string[],
 ): Promise<AppOcrResponse> {
   const base64 = arrayBufferToBase64(bytes);
+  const deadline = Date.now() + GEMINI_TOTAL_BUDGET_MS;
 
+  let lastErr: unknown;
+  for (let i = 0; i < models.length; i++) {
+    const remaining = deadline - Date.now();
+    if (remaining < MIN_ATTEMPT_MS) {
+      // 沒時間再試了——把目前為止最後一個錯誤拋出（沒有的話當 timeout）
+      throw lastErr ?? new GeminiError('ai_timeout', 504, 'OCR budget exhausted before any attempt');
+    }
+    const attemptTimeout = Math.min(PER_MODEL_TIMEOUT_MS, remaining);
+    try {
+      return await callOneModel(apiKey, models[i]!, base64, mimeType, attemptTimeout);
+    } catch (e) {
+      lastErr = e;
+      const canFailover =
+        e instanceof GeminiError &&
+        e.failover &&
+        i < models.length - 1 &&
+        deadline - Date.now() >= MIN_ATTEMPT_MS;
+      if (canFailover) {
+        console.warn(`App OCR: model ${models[i]} failed (${(e as GeminiError).code}), trying ${models[i + 1]}`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  // models 理論上非空（resolveModels 保證），保險用
+  throw lastErr ?? new GeminiError('internal_error', 500, 'No OCR model configured');
+}
+
+/** 對單一模型打一次 OCR。失敗一律包成帶 failover 旗標的 [GeminiError]。 */
+async function callOneModel(
+  apiKey: string,
+  model: string,
+  base64: string,
+  mimeType: string,
+  timeoutMs: number,
+): Promise<AppOcrResponse> {
   const prompt = `辨識圖中票券/優惠券的資訊。回傳純 JSON，不要 markdown 包裹。
 
 格式：
@@ -158,11 +230,11 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
 若圖中沒有可辨識的票券資訊，全部欄位回 null。
 若辨識到多張，只回傳第一張的資訊。`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey.trim()}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
 
   // AbortController 控制 timeout——Workers 的 fetch 沒有內建 timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   let res: Response;
   try {
@@ -184,9 +256,10 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
     });
   } catch (e) {
     if ((e as Error)?.name === 'AbortError') {
-      throw new GeminiError('ai_timeout', 504, 'Gemini fetch timed out');
+      // 本次嘗試逾時——若鏈上還有模型且總預算夠，可換下一個
+      throw new GeminiError('ai_timeout', 504, 'Gemini fetch timed out', true);
     }
-    throw new GeminiError('network_error', 502, `Gemini fetch threw: ${String(e)}`);
+    throw new GeminiError('network_error', 502, `Gemini fetch threw: ${String(e)}`, true);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -195,14 +268,14 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
     const bodyText = await safeReadText(res);
     const code = mapGeminiStatusToCode(res.status);
     const status = mapGeminiStatusToOurStatus(res.status);
-    throw new GeminiError(code, status, `Gemini ${res.status}: ${bodyText.slice(0, 500)}`);
+    throw new GeminiError(code, status, `Gemini ${res.status}: ${bodyText.slice(0, 500)}`, isFailoverStatus(res.status));
   }
 
   let json: unknown;
   try {
     json = await res.json();
   } catch (e) {
-    throw new GeminiError('ai_failed', 502, `Gemini response not JSON: ${String(e)}`);
+    throw new GeminiError('ai_failed', 502, `Gemini response not JSON: ${String(e)}`, true);
   }
 
   // 偵測 prompt 整個被擋（安全過濾、不雅內容等）
@@ -234,6 +307,20 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
     // Gemini 偶爾還是會回非 JSON 文字——同樣當「看不到票券」處理
     return { name: null, expireDate: null, categoryId: null };
   }
+}
+
+/**
+ * Gemini 回非 2xx 時，這個 HTTP status 換下一個模型有沒有機會成功？
+ * - 換得到下一個模型可能成功（404 模型不存在/打錯、408 逾時、429 限流、5xx 過載/錯誤）→ true
+ * - 換了也沒用（400 圖片本身被拒、401/403 金鑰/權限/帳單）→ false，直接拋
+ *
+ * 注意：400 對 OCR 代表「這張圖 Gemini 不接受」，換模型還是同一張圖，照樣被拒，所以不換。
+ */
+function isFailoverStatus(status: number): boolean {
+  if (status === 404 || status === 408) return true;
+  if (status === 429) return true;
+  if (status >= 500) return true; // 500/502/503/504
+  return false; // 400/401/403 及其他 4xx 都是我方/內容問題
 }
 
 /** Gemini HTTP status → 我們的 error code */
