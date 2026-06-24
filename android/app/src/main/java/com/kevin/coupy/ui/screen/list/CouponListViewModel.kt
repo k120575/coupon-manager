@@ -146,6 +146,8 @@ data class CouponListItem(
     val categoryEmoji: String,
     val quantity: Int,
     val type: CouponType,
+    /** 票券照片本機路徑，null = 沒存照片 */
+    val imagePath: String? = null,
     /** 距離到期還有幾天。負數 = 已過期；0 = 今天到期 */
     val daysUntilExpire: Long
 ) {
@@ -168,6 +170,7 @@ private fun CouponEntity.toListItem(
         categoryEmoji = category?.emoji ?: "📌",
         quantity = quantity,
         type = type,
+        imagePath = imagePath,
         daysUntilExpire = ChronoUnit.DAYS.between(today, expireDate)
     )
 }

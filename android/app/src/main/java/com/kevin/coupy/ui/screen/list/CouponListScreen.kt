@@ -1,5 +1,6 @@
 package com.kevin.coupy.ui.screen.list
 
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +55,7 @@ import com.kevin.coupy.ui.components.CouponActionsBottomSheet
 import com.kevin.coupy.ui.components.DeleteCouponDialog
 import com.kevin.coupy.ui.components.UseTicketsDialog
 import com.kevin.coupy.ui.util.clearFocusOnTap
+import java.io.File
 
 /**
  * 票券 tab：完整 active 票券列表。
@@ -206,6 +208,7 @@ fun CouponListScreen(
         UseTicketsDialog(
             couponName = item.name,
             maxQuantity = item.quantity,
+            photoUri = item.imagePath?.let { Uri.fromFile(File(it)) },
             onDismiss = { useDialogItem = null },
             onConfirm = { count ->
                 viewModel.useCoupon(item.id, count)

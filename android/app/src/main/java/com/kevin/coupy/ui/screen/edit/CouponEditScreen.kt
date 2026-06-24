@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,8 +33,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Remove
@@ -76,7 +81,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -96,7 +103,9 @@ import com.kevin.coupy.data.category.Category
 import com.kevin.coupy.data.isNoExpiration
 import com.kevin.coupy.ui.components.DeleteCouponDialog
 import com.kevin.coupy.ui.components.HoldableIconStep
+import com.kevin.coupy.ui.components.PhotoViewerDialog
 import com.kevin.coupy.ui.components.UseTicketsDialog
+import com.kevin.coupy.ui.components.rememberCouponImage
 import com.kevin.coupy.ui.util.clearFocusOnTap
 import java.io.File
 import kotlinx.coroutines.launch
@@ -123,6 +132,19 @@ fun CouponEditScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOcrLimitDialog by remember { mutableStateOf(false) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    // 票券照片用（跟上方 OCR 拍照分開，OCR 是辨識、這是存圖出示）
+    var pendingPhotoCaptureUri by remember { mutableStateOf<Uri?>(null) }
+    var showPhotoViewer by remember { mutableStateOf(false) }
+
+    // 預覽優先序：剛拍/剛選 > 已存的（未被移除）
+    val photoPreviewUri: Uri? = remember(
+        formState.pendingPhoto, formState.imagePath, formState.photoCleared
+    ) {
+        formState.pendingPhoto
+            ?: formState.imagePath
+                ?.takeIf { !formState.photoCleared }
+                ?.let { Uri.fromFile(File(it)) }
+    }
 
     // 相機 launcher：拍完照後 success=true，URI 是 pendingCameraUri
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -173,6 +195,41 @@ fun CouponEditScreen(
             galleryLauncher.launch("image/*")
         }
     }
+
+    // ===== 票券照片：拍照 / 相簿（不計 OCR 次數、不送辨識）=====
+    val photoCameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) pendingPhotoCaptureUri?.let { viewModel.onPhotoPicked(it) }
+        pendingPhotoCaptureUri = null
+    }
+    val photoCameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            launchCamera(context, photoCameraLauncher) { pendingPhotoCaptureUri = it }
+        } else {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("沒有相機權限就無法拍照")
+            }
+        }
+    }
+    val photoGalleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.onPhotoPicked(it) }
+    }
+    val tryCapturePhoto = {
+        if (ContextCompat.checkSelfPermission(
+                context, Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            launchCamera(context, photoCameraLauncher) { pendingPhotoCaptureUri = it }
+        } else {
+            photoCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+    val tryPickPhoto = { photoGalleryLauncher.launch("image/*") }
 
     LaunchedEffect(Unit) {
         viewModel.saveEvent.collect { event ->
@@ -283,6 +340,14 @@ fun CouponEditScreen(
                 onValueChange = viewModel::onQuantityChange
             )
 
+            PhotoField(
+                previewUri = photoPreviewUri,
+                onCapture = tryCapturePhoto,
+                onPick = tryPickPhoto,
+                onRemove = viewModel::onPhotoRemoved,
+                onView = { showPhotoViewer = true }
+            )
+
             NoteField(
                 value = formState.note,
                 onValueChange = viewModel::onNoteChange
@@ -344,11 +409,19 @@ fun CouponEditScreen(
             UseTicketsDialog(
                 couponName = formState.name,
                 maxQuantity = formState.quantity,
+                photoUri = photoPreviewUri,
                 onDismiss = { showUseDialog = false },
                 onConfirm = { count ->
                     viewModel.useTickets(count)
                     showUseDialog = false
                 }
+            )
+        }
+
+        if (showPhotoViewer && photoPreviewUri != null) {
+            PhotoViewerDialog(
+                uri = photoPreviewUri,
+                onDismiss = { showPhotoViewer = false }
             )
         }
 
@@ -384,51 +457,84 @@ private fun OcrButtonsRow(
     onTakePhotoClick: () -> Unit,
     onPickFromGalleryClick: () -> Unit
 ) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OcrActionButton(
-                icon = Icons.Default.PhotoCamera,
-                label = "拍照",
-                enabled = !isOcrRunning,
-                onClick = onTakePhotoClick,
-                modifier = Modifier.weight(1f)
+    // 用一個 tonal 卡片把 OCR 區框起來，並用標題 + 副標明確標示
+    // 「這裡是拍照辨識、會自動填入下方欄位、會消耗次數」，跟下方「票券照片」存圖區做區隔
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "智慧辨識",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                // 剩餘次數徽章
+                if (!isOcrRunning) {
+                    Text(
+                        text = "${periodLabel}剩 $remaining/$limit",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "拍照或選圖，自動填入下方票券資料",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            OcrActionButton(
-                icon = Icons.Default.Image,
-                label = "從相簿",
-                enabled = !isOcrRunning,
-                onClick = onPickFromGalleryClick,
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OcrActionButton(
+                    icon = Icons.Default.PhotoCamera,
+                    label = "拍照",
+                    enabled = !isOcrRunning,
+                    onClick = onTakePhotoClick,
+                    modifier = Modifier.weight(1f)
+                )
+                OcrActionButton(
+                    icon = Icons.Default.Image,
+                    label = "從相簿",
+                    enabled = !isOcrRunning,
+                    onClick = onPickFromGalleryClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             if (isOcrRunning) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "辨識中…",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            } else {
-                Text(
-                    text = "$periodLabel OCR 剩餘 $remaining / $limit 次",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "辨識中…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }
@@ -499,6 +605,131 @@ private fun OcrLimitReachedDialog(
             }
         }
     )
+}
+
+// ===== 票券照片 =====
+
+@Composable
+private fun PhotoField(
+    previewUri: Uri?,
+    onCapture: () -> Unit,
+    onPick: () -> Unit,
+    onRemove: () -> Unit,
+    onView: () -> Unit
+) {
+    Column {
+        FieldLabel("票券照片（選填）")
+        Text(
+            text = "存條碼／QR 或券面，使用時直接出示給店員掃",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        if (previewUri != null) {
+            val thumbnail = rememberCouponImage(previewUri, maxDimensionPx = 1080)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable(onClick = onView)
+            ) {
+                if (thumbnail != null) {
+                    Image(
+                        bitmap = thumbnail,
+                        contentDescription = "票券照片，點擊放大",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .align(Alignment.Center),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                // 移除按鈕（右上角）
+                Surface(
+                    onClick = onRemove,
+                    shape = RoundedCornerShape(50),
+                    color = Color.Black.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "移除照片",
+                        tint = Color.White,
+                        modifier = Modifier.padding(6.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PhotoActionButton(
+                    icon = Icons.Default.PhotoCamera,
+                    label = "重拍",
+                    onClick = onCapture,
+                    modifier = Modifier.weight(1f)
+                )
+                PhotoActionButton(
+                    icon = Icons.Default.Image,
+                    label = "換一張",
+                    onClick = onPick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PhotoActionButton(
+                    icon = Icons.Default.PhotoCamera,
+                    label = "拍照",
+                    onClick = onCapture,
+                    modifier = Modifier.weight(1f)
+                )
+                PhotoActionButton(
+                    icon = Icons.Default.Image,
+                    label = "從相簿",
+                    onClick = onPick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = label, fontWeight = FontWeight.Medium)
+    }
 }
 
 // ===== Camera helper =====

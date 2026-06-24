@@ -20,7 +20,7 @@ import com.kevin.coupy.data.entity.UsageEventEntity
  */
 @Database(
     entities = [CouponEntity::class, UsageEventEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -70,6 +70,16 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE coupons ADD COLUMN type TEXT NOT NULL DEFAULT 'physical'")
                 db.execSQL("ALTER TABLE coupons ADD COLUMN note TEXT")
+            }
+        }
+
+        /**
+         * v3 → v4：coupons 加 image_path（票券照片本機路徑）。
+         * 既有資料留 NULL（沒照片可遷移）。
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE coupons ADD COLUMN image_path TEXT")
             }
         }
     }

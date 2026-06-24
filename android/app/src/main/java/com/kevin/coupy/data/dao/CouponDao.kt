@@ -147,6 +147,18 @@ interface CouponDao {
     @Query("UPDATE coupons SET status = 'deleted' WHERE status = 'active' AND expire_date < :today")
     suspend fun softDeleteExpired(today: String)
 
+    /**
+     * 取出所有「即將被一鍵清除的過期 active 票券」的照片路徑，給呼叫端刪檔釋放空間用。
+     * 條件需與 [softDeleteExpired] 對齊。
+     */
+    @Query(
+        """
+        SELECT image_path FROM coupons
+        WHERE status = 'active' AND expire_date < :today AND image_path IS NOT NULL
+        """
+    )
+    suspend fun getExpiredImagePaths(today: String): List<String>
+
     /** 取回已刪除（給未來「資源回收筒」用，現在 UI 不暴露）*/
     @Query("SELECT * FROM coupons WHERE status = 'deleted' ORDER BY id DESC")
     fun observeDeleted(): Flow<List<CouponEntity>>

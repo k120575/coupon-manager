@@ -15,6 +15,7 @@ import java.time.LocalDate
  * 之後若要做 LINE bot ↔ App 雙向同步可直接重用欄位名。
  *
  * v3 加：type（實體 / 數位）+ note（備註，最多 100 字）
+ * v4 加：imagePath（票券照片本機路徑，出示給店員掃用）
  */
 @Entity(tableName = "coupons")
 data class CouponEntity(
@@ -42,5 +43,9 @@ data class CouponEntity(
     val type: CouponType = CouponType.PHYSICAL,
 
     /** v3 新增——備註（選填，UI 端限制 100 字） */
-    val note: String? = null
+    val note: String? = null,
+
+    /** v4 新增——票券照片本機檔案路徑（存在 coupon_images 私有目錄），null = 沒存照片 */
+    @ColumnInfo(name = "image_path")
+    val imagePath: String? = null
 )

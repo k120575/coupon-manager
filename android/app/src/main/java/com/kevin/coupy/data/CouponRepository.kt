@@ -5,6 +5,7 @@ import com.kevin.coupy.data.dao.CouponDao
 import com.kevin.coupy.data.dao.UsageEventDao
 import com.kevin.coupy.data.entity.CouponEntity
 import com.kevin.coupy.data.entity.UsageEventEntity
+import com.kevin.coupy.data.photo.CouponPhotoStore
 import kotlinx.coroutines.flow.Flow
 import java.time.Instant
 import javax.inject.Inject
@@ -19,7 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class CouponRepository @Inject constructor(
     private val dao: CouponDao,
-    private val usageEventDao: UsageEventDao
+    private val usageEventDao: UsageEventDao,
+    private val photoStore: CouponPhotoStore
 ) {
 
     // ===== 查詢 =====
@@ -81,18 +83,26 @@ class CouponRepository @Inject constructor(
         usageEventDao.insert(UsageEventEntity(couponId = id, count = count, usedAt = now))
 
         if (count >= coupon.quantity) {
-            // 用完了 → 標記為 used
+            // 用完了 → 標記為 used，並刪掉照片檔（券已退場、出示用途結束、使用者也看不到它）
             dao.markAsUsed(id, now)
+            photoStore.delete(coupon.imagePath)
         } else {
-            // 還有剩 → 只更新張數
+            // 還有剩 → 只更新張數，照片保留（之後還要出示）
             dao.updateQuantity(id, coupon.quantity - count)
         }
         return true
     }
 
-    suspend fun delete(id: Long) = dao.softDelete(id)
+    suspend fun delete(id: Long) {
+        val coupon = dao.getById(id)
+        dao.softDelete(id)
+        photoStore.delete(coupon?.imagePath)
+    }
 
-    /** 一鍵清除所有已過期票券（軟刪除）*/
-    suspend fun deleteAllExpired(today: java.time.LocalDate) =
+    /** 一鍵清除所有已過期票券（軟刪除），連帶刪掉照片檔釋放空間 */
+    suspend fun deleteAllExpired(today: java.time.LocalDate) {
+        val paths = dao.getExpiredImagePaths(today.toString())
         dao.softDeleteExpired(today.toString())
+        paths.forEach { photoStore.delete(it) }
+    }
 }

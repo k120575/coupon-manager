@@ -4,6 +4,7 @@ import com.kevin.coupy.data.CouponStatus
 import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.dao.CouponDao
 import com.kevin.coupy.data.entity.CouponEntity
+import com.kevin.coupy.data.photo.PhotoArchiver
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
@@ -19,10 +20,16 @@ import javax.inject.Singleton
  *
  * 匯出範圍：所有未刪除的票券（active + used），不含軟刪除資料。
  * 匯入策略：以 name + expire_date + category 為自然鍵去重，已存在則跳過。
+ *
+ * 照片：每張券的本機照片以 Base64 內嵌在同一個 JSON（欄位 "image"），讓備份維持
+ * 單一檔案、換手機還原時照片不掉。照片在存檔時就已降析度，單張數百 KB。
+ * [photoArchiver] 預設 [NoopPhotoArchiver]（不處理照片），給不需要照片的 unit test 用；
+ * 正式環境由 Hilt 注入真實的 CouponPhotoStore。
  */
 @Singleton
 class BackupRepository @Inject constructor(
-    private val dao: CouponDao
+    private val dao: CouponDao,
+    private val photoArchiver: PhotoArchiver
 ) {
 
     // ===== 匯出 =====
@@ -81,7 +88,10 @@ class BackupRepository @Inject constructor(
             if (existing > 0) {
                 skippedDup++
             } else {
-                toInsert.add(entity)
+                // 只對「確定要匯入」的票券還原照片，避免重覆票券寫出孤兒檔
+                val imageBase64 = obj.optString(KEY_IMAGE).takeIf { it.isNotBlank() }
+                val imagePath = imageBase64?.let { photoArchiver.saveFromBase64(it) }
+                toInsert.add(entity.copy(imagePath = imagePath))
                 imported++
             }
         }
@@ -120,6 +130,8 @@ class BackupRepository @Inject constructor(
         put("created_at", c.createdAt.toString())
         if (c.usedAt != null) put("used_at", c.usedAt.toString())
         if (!c.note.isNullOrBlank()) put("note", c.note)
+        // 照片以 Base64 內嵌；檔案不存在 / 沒照片 → 不寫此欄
+        photoArchiver.encodeToBase64(c.imagePath)?.let { put(KEY_IMAGE, it) }
     }
 
     private fun parseCoupon(obj: JSONObject): CouponEntity? {
@@ -160,6 +172,7 @@ class BackupRepository @Inject constructor(
         private const val KEY_EXPORTED_AT = "exported_at"
         private const val KEY_COUNT = "count"
         private const val KEY_COUPONS = "coupons"
+        private const val KEY_IMAGE = "image"
     }
 }
 

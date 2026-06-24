@@ -13,6 +13,7 @@ import com.kevin.coupy.data.ocr.MonthlyUsage
 import com.kevin.coupy.data.ocr.OcrException
 import com.kevin.coupy.data.ocr.OcrService
 import com.kevin.coupy.data.ocr.OcrUsageTracker
+import com.kevin.coupy.data.photo.CouponPhotoStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -39,6 +40,7 @@ class CouponEditViewModel @Inject constructor(
     categoryRepository: CategoryRepository,
     private val ocrService: OcrService,
     private val ocrUsageTracker: OcrUsageTracker,
+    private val photoStore: CouponPhotoStore,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -88,7 +90,8 @@ class CouponEditViewModel @Inject constructor(
                         categoryId = coupon.category,
                         quantity = coupon.quantity,
                         type = coupon.type,
-                        note = coupon.note.orEmpty()
+                        note = coupon.note.orEmpty(),
+                        imagePath = coupon.imagePath
                     )
                 }
             }
@@ -122,6 +125,18 @@ class CouponEditViewModel @Inject constructor(
         _formState.update { it.copy(note = note.take(MAX_NOTE_LENGTH)) }
     }
 
+    // ===== 票券照片 =====
+
+    /** 拍照 / 選相簿後呼叫：先暫存來源 uri，真正存檔延到按「儲存」時才做（避免取消也留下孤兒檔）*/
+    fun onPhotoPicked(uri: Uri) {
+        _formState.update { it.copy(pendingPhoto = uri, photoCleared = false) }
+    }
+
+    /** 移除照片：清掉待存的，並標記要刪掉原本存過的（真正刪檔同樣延到儲存時）*/
+    fun onPhotoRemoved() {
+        _formState.update { it.copy(pendingPhoto = null, photoCleared = true) }
+    }
+
     // ===== 儲存 =====
 
     fun save() {
@@ -130,12 +145,31 @@ class CouponEditViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                // 先把照片落地（拍/選的延到此刻才存；移除的此刻才刪原檔）
+                val pending = state.pendingPhoto
+                val finalImagePath: String? = when {
+                    pending != null -> {
+                        val newPath = photoStore.saveFromUri(pending)
+                        if (newPath == null) {
+                            _saveEvent.send(SaveEvent.Error("照片儲存失敗，請再試一次"))
+                            return@launch
+                        }
+                        if (state.imagePath != null) photoStore.delete(state.imagePath)
+                        newPath
+                    }
+                    state.photoCleared && state.imagePath != null -> {
+                        photoStore.delete(state.imagePath)
+                        null
+                    }
+                    else -> state.imagePath
+                }
+
                 if (editingId == null) {
-                    couponRepository.add(state.toNewEntity())
+                    couponRepository.add(state.toNewEntity().copy(imagePath = finalImagePath))
                 } else {
                     val existing = couponRepository.getById(editingId)
                     if (existing != null) {
-                        couponRepository.update(state.applyTo(existing))
+                        couponRepository.update(state.applyTo(existing).copy(imagePath = finalImagePath))
                     }
                 }
                 _saveEvent.send(SaveEvent.Saved)
@@ -248,7 +282,13 @@ data class CouponFormState(
     val quantity: Int,
     val type: CouponType,
     /** 空字串 = 沒填備註，存進 DB 時轉成 null */
-    val note: String
+    val note: String,
+    /** 已存在 DB 的照片路徑（編輯載入時帶入；新增為 null）*/
+    val imagePath: String? = null,
+    /** 剛拍 / 剛選、尚未存檔的照片來源 uri；非 null 時預覽優先顯示它 */
+    val pendingPhoto: Uri? = null,
+    /** 使用者按了移除：儲存時要刪掉 [imagePath] 對應的原檔 */
+    val photoCleared: Boolean = false
 ) {
     val isValid: Boolean
         get() = name.isNotBlank() &&

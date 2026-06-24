@@ -1,5 +1,6 @@
 package com.kevin.coupy.ui.components
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,12 +8,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,10 +40,12 @@ import androidx.compose.ui.unit.dp
 fun UseTicketsDialog(
     couponName: String,
     maxQuantity: Int,
+    photoUri: Uri? = null,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
     var useCount by remember { mutableStateOf(1) }
+    var showPhoto by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -93,6 +100,21 @@ fun UseTicketsDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (photoUri != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedButton(
+                        onClick = { showPhoto = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("打開照片")
+                    }
+                }
             }
         },
         confirmButton = {
@@ -110,4 +132,8 @@ fun UseTicketsDialog(
             }
         }
     )
+
+    if (showPhoto && photoUri != null) {
+        PhotoViewerDialog(uri = photoUri, onDismiss = { showPhoto = false })
+    }
 }

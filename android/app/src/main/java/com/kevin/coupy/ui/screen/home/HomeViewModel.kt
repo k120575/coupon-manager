@@ -109,6 +109,7 @@ private fun CouponEntity.toListItem(
         categoryEmoji = category?.emoji ?: "📌",
         quantity = quantity,
         type = type,
+        imagePath = imagePath,
         daysUntilExpire = ChronoUnit.DAYS.between(today, expireDate)
     )
 }

@@ -5,6 +5,7 @@ import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.dao.CategoryTicketCount
 import com.kevin.coupy.data.dao.CouponDao
 import com.kevin.coupy.data.entity.CouponEntity
+import com.kevin.coupy.data.photo.NoopPhotoArchiver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -27,7 +28,7 @@ class BackupRepositoryTest {
             coupon("禮品卡", "9999-12-31", "lifestyle", 5)
         )
         val srcDao = FakeCouponDao(source)
-        val srcRepo = BackupRepository(srcDao)
+        val srcRepo = BackupRepository(srcDao, NoopPhotoArchiver)
 
         val json = srcRepo.exportToJson(Instant.parse("2026-05-22T10:00:00Z"))
 
@@ -37,7 +38,7 @@ class BackupRepositoryTest {
         assertEquals(3, obj.getJSONArray("coupons").length())
 
         val dstDao = FakeCouponDao(emptyList())
-        val dstRepo = BackupRepository(dstDao)
+        val dstRepo = BackupRepository(dstDao, NoopPhotoArchiver)
         val result = dstRepo.importFromJson(json)
 
         assertEquals(3, result.imported)
@@ -60,7 +61,7 @@ class BackupRepositoryTest {
     fun `import skips duplicates by name plus expire_date plus category`() = runTest {
         val existing = listOf(coupon("星巴克", "2026-08-31", "drink", 2))
         val dao = FakeCouponDao(existing)
-        val repo = BackupRepository(dao)
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
 
         val incomingJson = """
             {
@@ -83,7 +84,7 @@ class BackupRepositoryTest {
     @Test
     fun `import counts unparseable rows as invalid but continues`() = runTest {
         val dao = FakeCouponDao(emptyList())
-        val repo = BackupRepository(dao)
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
 
         val json = """
             {
@@ -104,7 +105,7 @@ class BackupRepositoryTest {
 
     @Test
     fun `import rejects unsupported version`() = runTest {
-        val repo = BackupRepository(FakeCouponDao(emptyList()))
+        val repo = BackupRepository(FakeCouponDao(emptyList()), NoopPhotoArchiver)
         val futureJson = """{"version": 99, "coupons": []}"""
         assertThrows(BackupParseException::class.java) {
             kotlinx.coroutines.runBlocking { repo.importFromJson(futureJson) }
@@ -113,7 +114,7 @@ class BackupRepositoryTest {
 
     @Test
     fun `import rejects malformed json`() = runTest {
-        val repo = BackupRepository(FakeCouponDao(emptyList()))
+        val repo = BackupRepository(FakeCouponDao(emptyList()), NoopPhotoArchiver)
         assertThrows(BackupParseException::class.java) {
             kotlinx.coroutines.runBlocking { repo.importFromJson("{not json") }
         }
@@ -122,7 +123,7 @@ class BackupRepositoryTest {
     @Test
     fun `exported json contains expected top-level keys`() = runTest {
         val dao = FakeCouponDao(listOf(coupon("X", "2026-08-31", "drink", 1)))
-        val repo = BackupRepository(dao)
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
         val json = repo.exportToJson(Instant.parse("2026-05-22T10:00:00Z"))
         val obj = JSONObject(json)
         assertTrue(obj.has("version"))
@@ -135,7 +136,7 @@ class BackupRepositoryTest {
     @Test
     fun `imported deleted status is normalized to active`() = runTest {
         val dao = FakeCouponDao(emptyList())
-        val repo = BackupRepository(dao)
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
         val json = """
             {"version": 1, "coupons": [
               {"name": "回收票", "expire_date": "2026-08-31", "category": "drink", "status": "deleted"}
@@ -169,11 +170,11 @@ class BackupRepositoryTest {
             )
         )
         val srcDao = FakeCouponDao(source)
-        val srcRepo = BackupRepository(srcDao)
+        val srcRepo = BackupRepository(srcDao, NoopPhotoArchiver)
         val json = srcRepo.exportToJson(Instant.parse("2026-05-23T10:00:00Z"))
 
         val dstDao = FakeCouponDao(emptyList())
-        val dstRepo = BackupRepository(dstDao)
+        val dstRepo = BackupRepository(dstDao, NoopPhotoArchiver)
         dstRepo.importFromJson(json)
 
         val restored = dstDao.inserted.associateBy { it.name }
@@ -193,7 +194,7 @@ class BackupRepositoryTest {
             ]}
         """.trimIndent()
         val dao = FakeCouponDao(emptyList())
-        val repo = BackupRepository(dao)
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
         repo.importFromJson(oldJson)
 
         val inserted = dao.inserted.single()
@@ -210,7 +211,7 @@ class BackupRepositoryTest {
             ]}
         """.trimIndent()
         val dao = FakeCouponDao(emptyList())
-        val repo = BackupRepository(dao)
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
         repo.importFromJson(json)
         assertEquals(CouponType.PHYSICAL, dao.inserted.single().type)
     }
@@ -218,7 +219,7 @@ class BackupRepositoryTest {
     @Test
     fun `used_at is preserved when present`() = runTest {
         val dao = FakeCouponDao(emptyList())
-        val repo = BackupRepository(dao)
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
         val usedAt = "2026-04-01T12:00:00Z"
         val json = """
             {"version": 1, "coupons": [
@@ -301,6 +302,10 @@ class BackupRepositoryTest {
         override suspend fun updateQuantity(id: Long, newQuantity: Int) {}
 
         override suspend fun softDelete(id: Long) {}
+
+        override suspend fun softDeleteExpired(today: String) {}
+
+        override suspend fun getExpiredImagePaths(today: String): List<String> = emptyList()
 
         override fun observeDeleted(): Flow<List<CouponEntity>> = flowOf(emptyList())
     }
