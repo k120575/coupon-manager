@@ -8,6 +8,9 @@
     <!-- Android 13+ 推播權限 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- 重開機後重新排定每日到期提醒鬧鐘 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- OCR 拍照辨識需要相機 -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -46,6 +49,16 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- 每日到期提醒：鬧鐘觸發 + 開機/更新後重排 -->
+        <receiver
+            android:name=".notification.ExpiryReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <!-- 關閉預設 WorkManager 初始器，改由 Hilt 提供 Configuration.Provider -->
         <provider

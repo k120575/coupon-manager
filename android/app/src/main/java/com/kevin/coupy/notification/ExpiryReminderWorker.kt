@@ -38,21 +38,36 @@ class ExpiryReminderWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
+            val today = LocalDate.now()
             val enabledDays = preferenceRepository.enabledDays.first()
             if (enabledDays.isEmpty()) {
+                preferenceRepository.setLastRunDate(today)
                 return Result.success()
             }
 
-            val today = LocalDate.now()
-            // 票券到期日 - 今天 == 任一勾選天數，才命中
+            // 距上次成功檢查過了幾天。首次或異常時當作 1 天（= 一般每日行為）。
+            // 這個 gap 是關鍵：Doze/省電或關機讓某天沒跑時，gap 會 > 1，
+            // 我們就能補抓那段期間跨越的門檻，不會像「精確等於」那樣整個漏掉。
+            val lastRun = preferenceRepository.lastRunDate.first()
+            val gap = lastRun
+                ?.let { ChronoUnit.DAYS.between(it, today).toInt() }
+                ?.coerceAtLeast(1)
+                ?: 1
+
+            // 命中：票券在 (今天 .. 上次檢查] 這段期間跨越了任一啟用門檻。
+            // 即存在門檻 t 使 daysUntil <= t < daysUntil + gap。
+            // gap == 1 時退化為 t == daysUntil（每天準時跑的正常情況）。
             val matching = couponRepository.observeActive().first()
                 .mapNotNull { coupon ->
                     val daysUntil = ChronoUnit.DAYS.between(today, coupon.expireDate).toInt()
-                    if (daysUntil in enabledDays) coupon to daysUntil else null
+                    val crossed = daysUntil >= 0 &&
+                        enabledDays.any { t -> daysUntil <= t && t < daysUntil + gap }
+                    if (crossed) coupon to daysUntil else null
                 }
                 .sortedBy { it.second }
 
             if (matching.isEmpty()) {
+                preferenceRepository.setLastRunDate(today)
                 return Result.success()
             }
 
@@ -65,15 +80,17 @@ class ExpiryReminderWorker @AssistedInject constructor(
                 append(
                     when (mostUrgentDays) {
                         1 -> "「${mostUrgent.name}」明天到期"
-                        else -> "「${mostUrgent.name}」$mostUrgentDays 天後到期"
+                        else -> "「${mostUrgent.name}」還有 $mostUrgentDays 天到期"
                     }
                 )
-                if (recordCount > 1) append("，還有 ${recordCount - 1} 張即將到期")
+                if (recordCount > 1) append("，另有 ${recordCount - 1} 張即將到期")
             }
 
             postNotification(title, text)
+            preferenceRepository.setLastRunDate(today)
             Result.success()
         } catch (e: Exception) {
+            // 不更新 lastRunDate，讓 retry 後仍以正確的 gap 補抓
             Result.retry()
         }
     }

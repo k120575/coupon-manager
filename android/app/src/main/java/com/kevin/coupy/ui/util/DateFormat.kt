@@ -16,7 +16,7 @@ private val ShortDateFormatter = DateTimeFormatter.ofPattern("M/d")
  *   - daysUntil = -30 → "已過期 30 天 · 4/30"
  *   - daysUntil = 0   → "今天到期"
  *   - daysUntil = 1   → "明天到期"
- *   - daysUntil = 3   → "3 天後到期"
+ *   - daysUntil = 3   → "還有 3 天"
  *   - daysUntil = 100 → "2026/08/29"
  */
 fun formatExpireDate(date: LocalDate, daysUntil: Long): String = when {
@@ -24,6 +24,6 @@ fun formatExpireDate(date: LocalDate, daysUntil: Long): String = when {
     daysUntil < 0 -> "已過期 ${-daysUntil} 天 · ${date.format(ShortDateFormatter)}"
     daysUntil == 0L -> "今天到期"
     daysUntil == 1L -> "明天到期"
-    daysUntil <= 7 -> "${daysUntil} 天後到期"
+    daysUntil <= 7 -> "還有 ${daysUntil} 天"
     else -> date.format(DateFormatter)
 }
