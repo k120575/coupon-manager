@@ -36,4 +36,5 @@ object Routes {
     const val BACKUP = "backup"
     const val ABOUT = "about"
     const val DONATE = "donate"
+    const val FEEDBACK = "feedback"
 }

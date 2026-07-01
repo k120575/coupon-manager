@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Coffee
+import androidx.compose.material.icons.outlined.Feedback
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Science
@@ -66,6 +67,7 @@ import com.kevin.coupy.ui.theme.ThemeViewModel
  *     📁 分類管理
  *     💾 資料備份
  *     ☕ 請我喝杯咖啡
+ *     ✉️ 問題反應與建議
  *     ℹ 關於
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +77,7 @@ fun MineScreen(
     onCategoryManagementClick: () -> Unit,
     onBackupClick: () -> Unit,
     onDonateClick: () -> Unit,
+    onFeedbackClick: () -> Unit,
     onAboutClick: () -> Unit,
     themeViewModel: ThemeViewModel = hiltViewModel(),
     expiryReminderViewModel: ExpiryReminderViewModel = hiltViewModel()
@@ -150,6 +153,13 @@ fun MineScreen(
                         title = "請我喝杯咖啡",
                         subtitle = "如果這個 App 幫到你了",
                         onClick = onDonateClick
+                    )
+                    RowDivider()
+                    SettingsRow(
+                        icon = Icons.Outlined.Feedback,
+                        title = "問題反應與建議",
+                        subtitle = "有想法或遇到問題都歡迎告訴我",
+                        onClick = onFeedbackClick
                     )
                     RowDivider()
                     SettingsRow(

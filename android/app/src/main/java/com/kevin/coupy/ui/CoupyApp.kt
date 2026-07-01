@@ -25,6 +25,7 @@ import com.kevin.coupy.ui.screen.backup.BackupScreen
 import com.kevin.coupy.ui.screen.donate.DonateScreen
 import com.kevin.coupy.ui.screen.settings.AboutScreen
 import com.kevin.coupy.ui.screen.settings.CategoryManagementScreen
+import com.kevin.coupy.ui.screen.settings.FeedbackScreen
 import com.kevin.coupy.ui.screen.stats.StatsScreen
 
 /**
@@ -117,6 +118,7 @@ fun CoupyApp() {
                     onCategoryManagementClick = { navController.navigate(Routes.CATEGORY_MANAGEMENT) },
                     onBackupClick = { navController.navigate(Routes.BACKUP) },
                     onDonateClick = { navController.navigate(Routes.DONATE) },
+                    onFeedbackClick = { navController.navigate(Routes.FEEDBACK) },
                     onAboutClick = { navController.navigate(Routes.ABOUT) }
                 )
             }
@@ -156,6 +158,12 @@ fun CoupyApp() {
 
             composable(Routes.DONATE) {
                 DonateScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Routes.FEEDBACK) {
+                FeedbackScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
