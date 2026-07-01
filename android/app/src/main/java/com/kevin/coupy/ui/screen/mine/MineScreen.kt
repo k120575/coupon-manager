@@ -190,7 +190,7 @@ fun MineScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = "券管家 Coupy v1.0.0",
+                text = "券管家 Coupy v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
