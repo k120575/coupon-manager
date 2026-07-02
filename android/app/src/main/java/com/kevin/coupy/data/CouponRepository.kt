@@ -3,6 +3,7 @@ package com.kevin.coupy.data
 import com.kevin.coupy.data.dao.CategoryTicketCount
 import com.kevin.coupy.data.dao.CouponDao
 import com.kevin.coupy.data.dao.UsageEventDao
+import com.kevin.coupy.data.dao.UsageHistoryRow
 import com.kevin.coupy.data.entity.CouponEntity
 import com.kevin.coupy.data.entity.UsageEventEntity
 import com.kevin.coupy.data.photo.CouponPhotoStore
@@ -60,6 +61,10 @@ class CouponRepository @Inject constructor(
     /** 使用張數按分類分佈——身分標籤用 */
     fun observeUsageByCategory(): Flow<List<CategoryTicketCount>> =
         usageEventDao.observeUsageByCategory()
+
+    /** 完整使用紀錄（最新在前）——使用紀錄頁 */
+    fun observeUsageHistory(): Flow<List<UsageHistoryRow>> =
+        usageEventDao.observeHistory()
 
     // ===== 寫入 =====
 

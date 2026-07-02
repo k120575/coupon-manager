@@ -26,6 +26,22 @@ interface UsageEventDao {
     fun observeUsageAllTime(): Flow<Int>
 
     /**
+     * 完整使用紀錄，最新在前——使用紀錄頁。
+     *
+     * JOIN coupons 取名稱（含 status='used' / 'deleted' 的票券，歷史不因退場消失）。
+     * 同一天多筆時以 id 遞減當次要排序，維持插入順序穩定。
+     */
+    @Query(
+        """
+        SELECT e.used_at AS usedAt, c.name AS couponName, e.count AS count
+        FROM usage_events e
+        INNER JOIN coupons c ON e.coupon_id = c.id
+        ORDER BY e.used_at DESC, e.id DESC
+        """
+    )
+    fun observeHistory(): Flow<List<com.kevin.coupy.data.dao.UsageHistoryRow>>
+
+    /**
      * 使用張數按 coupons.category 分組。
      *
      * 用於統計頁的「身分標籤」（archetype）——看的是使用者實際的「行為」分佈，

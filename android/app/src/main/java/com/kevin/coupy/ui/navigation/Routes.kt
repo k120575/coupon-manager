@@ -32,6 +32,7 @@ object Routes {
     fun editRoute(couponId: Long? = null): String =
         if (couponId == null) EDIT else "$EDIT?$EDIT_ARG_COUPON_ID=$couponId"
 
+    const val USAGE_HISTORY = "usage_history"
     const val CATEGORY_MANAGEMENT = "category_management"
     const val BACKUP = "backup"
     const val ABOUT = "about"

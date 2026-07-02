@@ -25,6 +25,7 @@ import com.kevin.coupy.ui.screen.backup.BackupScreen
 import com.kevin.coupy.ui.screen.donate.DonateScreen
 import com.kevin.coupy.ui.screen.settings.AboutScreen
 import com.kevin.coupy.ui.screen.settings.CategoryManagementScreen
+import com.kevin.coupy.ui.screen.history.UsageHistoryScreen
 import com.kevin.coupy.ui.screen.settings.FeedbackScreen
 import com.kevin.coupy.ui.screen.stats.StatsScreen
 
@@ -104,7 +105,8 @@ fun CoupyApp() {
             composable(Routes.TICKETS) {
                 CouponListScreen(
                     innerPadding = innerPadding,
-                    onCouponClick = { id -> navController.navigate(Routes.editRoute(id)) }
+                    onCouponClick = { id -> navController.navigate(Routes.editRoute(id)) },
+                    onHistoryClick = { navController.navigate(Routes.USAGE_HISTORY) }
                 )
             }
 
@@ -134,6 +136,12 @@ fun CoupyApp() {
                 )
             ) {
                 CouponEditScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Routes.USAGE_HISTORY) {
+                UsageHistoryScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
