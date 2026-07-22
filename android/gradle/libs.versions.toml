@@ -38,7 +38,9 @@ coroutines = "1.9.0"
 okhttp = "4.12.0"
 
 # Google Play Billing (for Donate)
-billing = "7.1.1"
+# 注意：9.x 用 Kotlin 2.3 編譯，專案 Kotlin 2.1 讀不了 metadata；
+# Google 2026-08-31 的最低要求是 8.0.0+，等 Kotlin 升級後再上 9
+billing = "8.3.0"
 
 # Testing
 junit = "4.13.2"

@@ -30,7 +30,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Donate 後端，包 Google Play Billing 7.x。
+ * Donate 後端，包 Google Play Billing 8.x。
  *
  * 流程：
  *   1. 啟動連線 → queryProductDetails 抓 3 個商品價格
