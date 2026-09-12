@@ -1,6 +1,7 @@
 name = "coupon-manager"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+keep_vars = true # 後台設定的明文 Variables 不因 deploy 被清掉（Secrets 本來就不受影響）
 
 # LINE webhook 每天固定時間發送到期通知（UTC 00:00 = 台灣 08:00）
 [triggers]
