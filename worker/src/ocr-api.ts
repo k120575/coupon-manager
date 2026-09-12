@@ -5,7 +5,7 @@
  * - LINE bot 用 6 個粗分類（worker/src/config.ts 的 CATEGORIES）
  * - App 用 14 個細分類（跟 Kotlin BuiltInCategory 對齊）
  *
- * 兩套共存不互相干擾——LINE bot 那邊不動。
+ * 兩套 prompt 共存不互相干擾，但模型鏈與 failover 共用 gemini.ts（後台 OCR_MODELS 一處設定）。
  *
  * 成功回應（HTTP 200）：
  * {
@@ -24,6 +24,8 @@
  */
 
 import type { Env } from './env.js';
+import { GeminiError, generateTextFromImage, resolveOcrModels } from './gemini.js';
+import type { GeminiErrorCode } from './gemini.js';
 
 interface AppOcrResponse {
   name: string | null;
@@ -35,14 +37,7 @@ type OcrErrorCode =
   | 'unauthorized'        // 401  — token 不對
   | 'bad_request'         // 400  — content-type / body 不合法
   | 'image_too_large'     // 413  — > 5MB
-  | 'image_invalid'       // 422  — Gemini 回 400（圖片無法解讀）
-  | 'ai_blocked'          // 422  — 安全過濾擋掉
-  | 'ai_busy'             // 503  — Gemini 429 / 503（rate limit / 過載）
-  | 'ai_unavailable'      // 503  — Gemini 401/403/404（API key / model 設定問題）
-  | 'ai_timeout'          // 504  — Gemini fetch 超時
-  | 'ai_failed'           // 502  — Gemini 其他 5xx / 回應 parse 失敗
-  | 'network_error'       // 502  — fetch Gemini 整個 throw（DNS / TLS）
-  | 'internal_error';     // 500  — 兜底
+  | GeminiErrorCode;      // 其餘 Gemini 相關錯誤碼定義在 gemini.ts
 
 /**
  * App 端 14 個分類 ID，跟 Kotlin BuiltInCategory enum 對齊。
@@ -66,31 +61,6 @@ const APP_CATEGORY_IDS = [
 ] as const;
 
 type AppCategoryId = (typeof APP_CATEGORY_IDS)[number];
-
-/**
- * 整條模型鏈共用的總時間預算。設 55s 留 5s 給 Worker 自身 overhead，
- * 比 App 端 readTimeout (60s) 短一點，讓我們先 abort 並回 ai_timeout 而不是讓 App socket timeout。
- * 多模型 fallback 時，這 55s 是「全部嘗試加起來」的上限，不是每個模型各自 55s。
- */
-const GEMINI_TOTAL_BUDGET_MS = 55_000;
-
-/** 單一模型單次嘗試的上限；實際還會被「剩餘總預算」夾住，取兩者較小值。 */
-const PER_MODEL_TIMEOUT_MS = 25_000;
-
-/** 剩餘總預算低於此值就不再開新嘗試（避免開了一個注定 timeout 的請求）。 */
-const MIN_ATTEMPT_MS = 8_000;
-
-/** 未設定 env.OCR_MODELS 時退回的單一模型。 */
-const DEFAULT_OCR_MODEL = 'gemini-3.1-flash-lite';
-
-/** 解析 env.OCR_MODELS（逗號分隔）成優先鏈；空值退回單一預設。 */
-function resolveModels(raw: string | undefined): string[] {
-  const chain = (raw ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return chain.length ? chain : [DEFAULT_OCR_MODEL];
-}
 
 export async function handleAppOcr(request: Request, env: Env): Promise<Response> {
   // === Auth ===
@@ -121,7 +91,7 @@ export async function handleAppOcr(request: Request, env: Env): Promise<Response
 
   // === 呼叫 Gemini（依模型鏈依序嘗試）===
   try {
-    const models = resolveModels(env.OCR_MODELS);
+    const models = resolveOcrModels(env);
     const result = await callGeminiForApp(env.GEMINI_API_KEY, bytes, contentType, models);
     return jsonResponse(result, 200);
   } catch (e) {
@@ -130,77 +100,13 @@ export async function handleAppOcr(request: Request, env: Env): Promise<Response
 }
 
 /**
- * 內部錯誤型別——把 Gemini 各種失敗統一包成 (code, status, message)，
- * 在 [geminiErrorToResponse] 那邊轉成對外 HTTP 回應。
- */
-class GeminiError extends Error {
-  constructor(
-    public readonly code: OcrErrorCode,
-    public readonly status: number,
-    message: string,
-    /**
-     * true = 「非我方問題」，換下一個模型可能成功（限流/過載/5xx/模型不存在/超時/網路）。
-     * false = 我方/內容問題，換模型也沒用（圖片被拒、安全過濾、金鑰/權限），直接拋。
-     */
-    public readonly failover: boolean = false,
-  ) {
-    super(message);
-  }
-}
-
-/**
- * 依模型優先鏈依序嘗試：
- * - 成功 → 直接回傳。
- * - 失敗且 [GeminiError.failover] 為 true 且還有下一個模型且還有時間 → 換下一個。
- * - 否則 → 拋出（交給 [geminiErrorToResponse] 轉對外回應）。
- *
- * 時間預算：整條鏈共用 [GEMINI_TOTAL_BUDGET_MS]。每次嘗試拿 min(每模型上限, 剩餘預算)，
- * 剩餘不足 [MIN_ATTEMPT_MS] 就不再開新嘗試——確保總耗時不超過 App 端 readTimeout。
+ * 依模型鏈呼叫 Gemini（鏈與 failover 邏輯在 gemini.ts），把回傳文字解析成 App 回應格式。
  */
 async function callGeminiForApp(
   apiKey: string,
   bytes: ArrayBuffer,
   mimeType: string,
   models: string[],
-): Promise<AppOcrResponse> {
-  const base64 = arrayBufferToBase64(bytes);
-  const deadline = Date.now() + GEMINI_TOTAL_BUDGET_MS;
-
-  let lastErr: unknown;
-  for (let i = 0; i < models.length; i++) {
-    const remaining = deadline - Date.now();
-    if (remaining < MIN_ATTEMPT_MS) {
-      // 沒時間再試了——把目前為止最後一個錯誤拋出（沒有的話當 timeout）
-      throw lastErr ?? new GeminiError('ai_timeout', 504, 'OCR budget exhausted before any attempt');
-    }
-    const attemptTimeout = Math.min(PER_MODEL_TIMEOUT_MS, remaining);
-    try {
-      return await callOneModel(apiKey, models[i]!, base64, mimeType, attemptTimeout);
-    } catch (e) {
-      lastErr = e;
-      const canFailover =
-        e instanceof GeminiError &&
-        e.failover &&
-        i < models.length - 1 &&
-        deadline - Date.now() >= MIN_ATTEMPT_MS;
-      if (canFailover) {
-        console.warn(`App OCR: model ${models[i]} failed (${(e as GeminiError).code}), trying ${models[i + 1]}`);
-        continue;
-      }
-      throw e;
-    }
-  }
-  // models 理論上非空（resolveModels 保證），保險用
-  throw lastErr ?? new GeminiError('internal_error', 500, 'No OCR model configured');
-}
-
-/** 對單一模型打一次 OCR。失敗一律包成帶 failover 旗標的 [GeminiError]。 */
-async function callOneModel(
-  apiKey: string,
-  model: string,
-  base64: string,
-  mimeType: string,
-  timeoutMs: number,
 ): Promise<AppOcrResponse> {
   const prompt = `辨識圖中票券/優惠券的資訊。回傳純 JSON，不要 markdown 包裹。
 
@@ -230,67 +136,17 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
 若圖中沒有可辨識的票券資訊，全部欄位回 null。
 若辨識到多張，只回傳第一張的資訊。`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+  const raw = await generateTextFromImage(apiKey, models, {
+    prompt,
+    bytes,
+    mimeType,
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0.1, // 低溫度讓辨識結果穩定
+    },
+    tag: 'App OCR',
+  });
 
-  // AbortController 控制 timeout——Workers 的 fetch 沒有內建 timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }],
-          },
-        ],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1, // 低溫度讓辨識結果穩定
-        },
-      }),
-      signal: controller.signal,
-    });
-  } catch (e) {
-    if ((e as Error)?.name === 'AbortError') {
-      // 本次嘗試逾時——若鏈上還有模型且總預算夠，可換下一個
-      throw new GeminiError('ai_timeout', 504, 'Gemini fetch timed out', true);
-    }
-    throw new GeminiError('network_error', 502, `Gemini fetch threw: ${String(e)}`, true);
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  if (!res.ok) {
-    const bodyText = await safeReadText(res);
-    const code = mapGeminiStatusToCode(res.status);
-    const status = mapGeminiStatusToOurStatus(res.status);
-    throw new GeminiError(code, status, `Gemini ${res.status}: ${bodyText.slice(0, 500)}`, isFailoverStatus(res.status));
-  }
-
-  let json: unknown;
-  try {
-    json = await res.json();
-  } catch (e) {
-    throw new GeminiError('ai_failed', 502, `Gemini response not JSON: ${String(e)}`, true);
-  }
-
-  // 偵測 prompt 整個被擋（安全過濾、不雅內容等）
-  const blockReason = getString(json, ['promptFeedback', 'blockReason']);
-  if (blockReason) {
-    throw new GeminiError('ai_blocked', 422, `Gemini prompt blocked: ${blockReason}`);
-  }
-
-  // 偵測 candidate 被安全過濾擋（finishReason = SAFETY / RECITATION）
-  const finishReason = getString(json, ['candidates', 0, 'finishReason']);
-  if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
-    throw new GeminiError('ai_blocked', 422, `Gemini finished: ${finishReason}`);
-  }
-
-  const raw = getString(json, ['candidates', 0, 'content', 'parts', 0, 'text'])?.trim() ?? '';
   if (!raw) {
     // Gemini 成功回應但完全沒文字——當成「看不到票券」回全 null，App 端會選擇不扣次數。
     return { name: null, expireDate: null, categoryId: null };
@@ -309,41 +165,6 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
   }
 }
 
-/**
- * Gemini 回非 2xx 時，這個 HTTP status 換下一個模型有沒有機會成功？
- * - 換得到下一個模型可能成功（404 模型不存在/打錯、408 逾時、429 限流、5xx 過載/錯誤）→ true
- * - 換了也沒用（400 圖片本身被拒、401/403 金鑰/權限/帳單）→ false，直接拋
- *
- * 注意：400 對 OCR 代表「這張圖 Gemini 不接受」，換模型還是同一張圖，照樣被拒，所以不換。
- */
-function isFailoverStatus(status: number): boolean {
-  if (status === 404 || status === 408) return true;
-  if (status === 429) return true;
-  if (status >= 500) return true; // 500/502/503/504
-  return false; // 400/401/403 及其他 4xx 都是我方/內容問題
-}
-
-/** Gemini HTTP status → 我們的 error code */
-function mapGeminiStatusToCode(status: number): OcrErrorCode {
-  if (status === 400) return 'image_invalid';           // 圖片 Gemini 不接受
-  if (status === 401 || status === 403) return 'ai_unavailable'; // API key 壞 / 沒權限 / billing
-  if (status === 404) return 'ai_unavailable';          // model 名打錯
-  if (status === 429) return 'ai_busy';                 // rate limit / quota
-  if (status === 503) return 'ai_busy';                 // overloaded
-  if (status === 504) return 'ai_timeout';
-  if (status >= 500) return 'ai_failed';                // 其他 5xx
-  return 'ai_failed';                                    // 其他非預期 4xx
-}
-
-/** Gemini HTTP status → 我們對外的 HTTP status */
-function mapGeminiStatusToOurStatus(status: number): number {
-  if (status === 400) return 422;
-  if (status === 401 || status === 403 || status === 404) return 503;
-  if (status === 429 || status === 503) return 503;
-  if (status === 504) return 504;
-  return 502;
-}
-
 function geminiErrorToResponse(e: unknown): Response {
   if (e instanceof GeminiError) {
     console.error(`App OCR ${e.code}: ${e.message}`);
@@ -351,30 +172,6 @@ function geminiErrorToResponse(e: unknown): Response {
   }
   console.error('App OCR unexpected error:', e);
   return errorResponse('internal_error', 500);
-}
-
-async function safeReadText(res: Response): Promise<string> {
-  try {
-    return await res.text();
-  } catch {
-    return '';
-  }
-}
-
-/** 從巢狀物件安全取出字串，路徑上任何一段缺值就回 undefined */
-function getString(root: unknown, path: ReadonlyArray<string | number>): string | undefined {
-  let cur: unknown = root;
-  for (const key of path) {
-    if (cur == null) return undefined;
-    if (typeof key === 'number') {
-      if (!Array.isArray(cur)) return undefined;
-      cur = cur[key];
-    } else {
-      if (typeof cur !== 'object') return undefined;
-      cur = (cur as Record<string, unknown>)[key];
-    }
-  }
-  return typeof cur === 'string' ? cur : undefined;
 }
 
 function normalizeDate(value: unknown): string | null {
@@ -411,14 +208,4 @@ function jsonResponse(body: unknown, status: number): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
 }

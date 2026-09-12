@@ -46,6 +46,9 @@ npm run typecheck    # tsc
 - `GEMINI_API_KEY`
 - `OCR_CLIENT_SECRET` — App OCR 共用 token，跟 App `local.properties` 的 `coupy.ocrToken` 一致
 
+**Variables**（Cloudflare Dashboard → Worker → Settings → Variables，明文即可）：
+- `OCR_MODELS` — Gemini OCR 模型優先鏈，LINE bot 與 App 共用，逗號分隔（例：`gemini-3.1-flash-lite,gemini-2.5-flash,gemini-3.5-flash`）。第一個是主力，限流/過載/5xx/模型不存在/超時會自動換下一個。不寫在 wrangler.toml，改模型不用重新部署；`keep_vars = true` 保證 deploy 不會清掉。
+
 ## Android App 開發
 
 用 Android Studio 開 `android/` 資料夾即可（不是專案根目錄）。

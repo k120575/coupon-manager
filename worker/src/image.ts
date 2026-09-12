@@ -10,6 +10,7 @@ import { putPending } from './db.js';
 import { lineFetchContent, lineReply } from './line.js';
 import { qrMessage, qrPostback, textMsg } from './messages.js';
 import { parseEntry } from './parser.js';
+import { generateTextFromImage, resolveOcrModels } from './gemini.js';
 import type { Env } from './env.js';
 
 interface OcrItem {
@@ -30,7 +31,8 @@ export async function handleImageOcr(
       env.LINE_CHANNEL_ACCESS_TOKEN,
       messageId,
     );
-    const items = await ocrWithGemini(env.GEMINI_API_KEY, bytes, contentType);
+    // 模型鏈與 App 端 OCR 共用同一個後台設定 OCR_MODELS（見 gemini.ts）
+    const items = await ocrWithGemini(env, bytes, contentType);
 
     if (items.length === 0) {
       await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
@@ -74,11 +76,10 @@ export async function handleImageOcr(
 }
 
 async function ocrWithGemini(
-  apiKey: string,
+  env: Env,
   bytes: ArrayBuffer,
   mimeType: string,
 ): Promise<OcrItem[]> {
-  const base64 = arrayBufferToBase64(bytes);
   const categoryList = CATEGORIES.join('、');
   const prompt = `辨識圖中票券/優惠券的名稱、日期與類別。
 格式：名稱 日期 類別
@@ -87,24 +88,12 @@ async function ocrWithGemini(
 多張用 | 分隔。
 範例：星巴克買一送一 2026/03/15 🍽️ 餐飲 | 全聯折價券 2026/06/30 🛒 購物`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey.trim()}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64 } }],
-        },
-      ],
-    }),
+  const raw = await generateTextFromImage(env.GEMINI_API_KEY, resolveOcrModels(env), {
+    prompt,
+    bytes,
+    mimeType,
+    tag: 'LINE OCR',
   });
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
-
-  const json = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const raw = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
   if (!raw) return [];
 
   return raw
@@ -130,14 +119,4 @@ function parseOcrSegment(s: string): OcrItem | null {
   const entry = parseEntry(s);
   if (entry) return { name: entry.name, date: entry.date, category: DEFAULT_CATEGORY, quantity: 1 };
   return null;
-}
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
 }
