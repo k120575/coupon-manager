@@ -55,6 +55,10 @@ sealed class OcrException(val userMessage: String) : Exception(userMessage) {
     object Unauthorized : OcrException("辨識功能暫時無法使用，請稍後再試") {
         private fun readResolve(): Any = Unauthorized
     }
+    /** Worker 端每日上限（每個來源 IP 或全站）用完；跟 App 內的每月次數是兩回事 */
+    object QuotaExceeded : OcrException("今天的辨識次數已達上限，明天再試或手動輸入") {
+        private fun readResolve(): Any = QuotaExceeded
+    }
     object Unknown : OcrException("這次辨識沒成功，再試一次或手動輸入") {
         private fun readResolve(): Any = Unknown
     }
@@ -74,6 +78,7 @@ sealed class OcrException(val userMessage: String) : Exception(userMessage) {
             "image_invalid" -> ImageInvalid
             "image_too_large" -> ImageTooLarge
             "unauthorized" -> Unauthorized
+            "quota_exceeded" -> QuotaExceeded
             "bad_request" -> AiFailed       // App 送錯東西——使用者改不了，給通用訊息
             "internal_error" -> AiFailed
             else -> AiFailed

@@ -1,4 +1,5 @@
 export interface Env {
+  /** D1：users / coupons / pending_actions / usage_counters（成本閘計數，見 migrations/0004） */
   DB: D1Database;
   LINE_CHANNEL_ACCESS_TOKEN: string;
   LINE_CHANNEL_SECRET: string;

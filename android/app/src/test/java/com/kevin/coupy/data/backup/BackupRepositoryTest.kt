@@ -104,6 +104,27 @@ class BackupRepositoryTest {
     }
 
     @Test
+    fun `import truncates over-long name and note to editor limits`() = runTest {
+        val dao = FakeCouponDao(emptyList())
+        val repo = BackupRepository(dao, NoopPhotoArchiver)
+        val longName = "名".repeat(5_000)
+        val longNote = "備".repeat(5_000)
+        val json = """
+            {
+              "version": 1,
+              "coupons": [
+                {"name": "$longName", "expire_date": "2026-09-30", "category": "drink", "note": "$longNote"}
+              ]
+            }
+        """.trimIndent()
+
+        val result = repo.importFromJson(json)
+        assertEquals(1, result.imported)
+        assertEquals(30, dao.inserted[0].name.length)
+        assertEquals(100, dao.inserted[0].note?.length)
+    }
+
+    @Test
     fun `import rejects unsupported version`() = runTest {
         val repo = BackupRepository(FakeCouponDao(emptyList()), NoopPhotoArchiver)
         val futureJson = """{"version": 99, "coupons": []}"""

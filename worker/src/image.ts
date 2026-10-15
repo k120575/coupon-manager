@@ -1,12 +1,14 @@
 import {
   CATEGORIES,
   DEFAULT_CATEGORY,
+  LINE_OCR_DAILY_GLOBAL,
+  LINE_OCR_DAILY_PER_USER,
   MAX_QUICK_REPLY,
   UNLIMITED_DATE,
   isCategory,
 } from './config.js';
 import type { Category } from './config.js';
-import { putPending } from './db.js';
+import { bumpDailyCounter, putPending } from './db.js';
 import { lineFetchContent, lineReply } from './line.js';
 import { qrMessage, qrPostback, textMsg } from './messages.js';
 import { parseEntry } from './parser.js';
@@ -27,6 +29,23 @@ export async function handleImageOcr(
   messageId: string,
 ): Promise<void> {
   try {
+    // 成本閘：每人每日與全站每日上限都在呼叫 Gemini 之前檢查（先加再比）
+    const userCount = await bumpDailyCounter(env.DB, `line:u:${userId}`);
+    if (userCount > LINE_OCR_DAILY_PER_USER) {
+      await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
+        textMsg(`📷 今天的圖片辨識次數已達上限（${LINE_OCR_DAILY_PER_USER} 次），明天再試或手動輸入「名稱 日期」。`),
+      ]);
+      return;
+    }
+    const globalCount = await bumpDailyCounter(env.DB, 'line:global');
+    if (globalCount > LINE_OCR_DAILY_GLOBAL) {
+      console.warn(`LINE OCR global daily limit hit: ${globalCount}`);
+      await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
+        textMsg('📷 圖片辨識今天太熱門、額度已用完，請先手動輸入「名稱 日期」。'),
+      ]);
+      return;
+    }
+
     const { bytes, contentType } = await lineFetchContent(
       env.LINE_CHANNEL_ACCESS_TOKEN,
       messageId,

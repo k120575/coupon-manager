@@ -1,5 +1,5 @@
 import { NOTIFY_DAYS, UNLIMITED_DATE } from './config.js';
-import { cleanupExpiredPending, listCouponsExpiringIn } from './db.js';
+import { cleanupExpiredPending, cleanupOldUsageCounters, listCouponsExpiringIn } from './db.js';
 import { linePush } from './line.js';
 import { getCategoryEmoji } from './messages.js';
 import { toIsoDate } from './parser.js';
@@ -7,6 +7,7 @@ import type { Env } from './env.js';
 
 export async function runDailyNotify(env: Env): Promise<void> {
   await cleanupExpiredPending(env.DB);
+  await cleanupOldUsageCounters(env.DB);
 
   const today = new Date();
   const notifications = new Map<string, string[]>();

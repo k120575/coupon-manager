@@ -1,6 +1,12 @@
-import { DEFAULT_CATEGORY, MAX_FUZZY_RESULTS } from './config.js';
+import {
+  BATCH_MAX_LINES,
+  DEFAULT_CATEGORY,
+  MAX_ACTIVE_COUPONS_PER_USER,
+  MAX_FUZZY_RESULTS,
+} from './config.js';
 import { buildCouponListMessage } from './coupon-list.js';
 import {
+  countActiveCoupons,
   fuzzySearchActive,
   insertCoupon,
   isDuplicate,
@@ -206,11 +212,18 @@ async function handleBatchInsert(
   userText: string,
 ): Promise<void> {
   const body = userText.replace(/^批次存入\s*/, '').trim();
-  const lines = body.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const allLines = body.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  // 一則最多處理 BATCH_MAX_LINES 行：擋住單則訊息觸發數百次 D1 寫入
+  const lines = allLines.slice(0, BATCH_MAX_LINES);
+  const truncated = allLines.length - lines.length;
+
+  // 每人 active 票券總數上限：還有多少空間就最多存多少
+  let room = MAX_ACTIVE_COUPONS_PER_USER - (await countActiveCoupons(env.DB, userId));
 
   const saved: string[] = [];
   const duplicates: Array<{ name: string; date: string }> = [];
   const invalid: string[] = [];
+  let overLimit = 0;
 
   for (const line of lines) {
     const entry = parseEntry(line);
@@ -222,13 +235,20 @@ async function handleBatchInsert(
       duplicates.push({ name: entry.name, date: entry.date });
       continue;
     }
+    if (room <= 0) {
+      overLimit++;
+      continue;
+    }
     await insertCoupon(env.DB, userId, entry.name, entry.date, DEFAULT_CATEGORY, 1);
+    room--;
     saved.push(entry.name);
   }
 
   const summary: string[] = [];
   if (saved.length > 0) summary.push(`✅ 已存入 ${saved.length} 筆\n${saved.join('\n')}`);
   if (invalid.length > 0) summary.push(`⚠️ 格式錯誤 ${invalid.length} 筆已略過`);
+  if (truncated > 0) summary.push(`⚠️ 一次最多 ${BATCH_MAX_LINES} 筆，後面 ${truncated} 行沒處理，請分批再送`);
+  if (overLimit > 0) summary.push(`⚠️ 票券已達 ${MAX_ACTIVE_COUPONS_PER_USER} 筆上限，${overLimit} 筆沒存入，請先清理用過或過期的券`);
 
   if (duplicates.length > 0) {
     await putPending(env.DB, userId, {

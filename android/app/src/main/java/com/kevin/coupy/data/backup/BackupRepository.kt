@@ -1,5 +1,6 @@
 package com.kevin.coupy.data.backup
 
+import com.kevin.coupy.data.CouponLimits
 import com.kevin.coupy.data.CouponStatus
 import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.dao.CouponDao
@@ -135,7 +136,9 @@ class BackupRepository @Inject constructor(
     }
 
     private fun parseCoupon(obj: JSONObject): CouponEntity? {
-        val name = obj.optString("name").takeIf { it.isNotBlank() } ?: return null
+        // 匯入檔是使用者可手改的純文字：長度跟編輯器同一個上限，避免超長字串拖垮列表
+        val name = obj.optString("name").trim().take(CouponLimits.MAX_NAME_LENGTH)
+            .takeIf { it.isNotBlank() } ?: return null
         val expireStr = obj.optString("expire_date").takeIf { it.isNotBlank() } ?: return null
         val category = obj.optString("category").takeIf { it.isNotBlank() } ?: return null
         val quantity = obj.optInt("quantity", 1).coerceAtLeast(1)
@@ -143,7 +146,7 @@ class BackupRepository @Inject constructor(
         val typeStr = obj.optString("type", CouponType.PHYSICAL.dbValue)
         val createdAtStr = obj.optString("created_at").takeIf { it.isNotBlank() }
         val usedAtStr = obj.optString("used_at").takeIf { it.isNotBlank() }
-        val note = obj.optString("note").takeIf { it.isNotBlank() }
+        val note = obj.optString("note").take(CouponLimits.MAX_NOTE_LENGTH).takeIf { it.isNotBlank() }
 
         val expireDate = runCatching { LocalDate.parse(expireStr) }.getOrNull() ?: return null
         val createdAt = createdAtStr?.let { runCatching { Instant.parse(it) }.getOrNull() }

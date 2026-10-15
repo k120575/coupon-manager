@@ -35,6 +35,7 @@ class OcrErrorMappingTest {
             "image_invalid" to OcrException.ImageInvalid,
             "image_too_large" to OcrException.ImageTooLarge,
             "unauthorized" to OcrException.Unauthorized,
+            "quota_exceeded" to OcrException.QuotaExceeded,
             "bad_request" to OcrException.AiFailed,        // 對使用者就是「失敗」
             "internal_error" to OcrException.AiFailed
         )

@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kevin.coupy.data.CouponLimits
 import com.kevin.coupy.data.CouponRepository
 import com.kevin.coupy.data.CouponType
 import com.kevin.coupy.data.category.Category
@@ -257,7 +258,8 @@ class CouponEditViewModel @Inject constructor(
     private fun applyOcrResultToForm(result: com.kevin.coupy.data.ocr.OcrResult) {
         _formState.update { current ->
             current.copy(
-                name = result.name?.takeIf { it.isNotBlank() } ?: current.name,
+                // OCR 回傳的名稱也要套同一個上限：網路端的字串不經過 onNameChange
+                name = result.name?.takeIf { it.isNotBlank() }?.take(MAX_NAME_LENGTH) ?: current.name,
                 expireDate = result.expireDate ?: current.expireDate,
                 categoryId = result.categoryId?.takeIf { it.isNotBlank() } ?: current.categoryId,
                 quantity = result.quantity?.takeIf { it >= 1 } ?: current.quantity
@@ -267,9 +269,10 @@ class CouponEditViewModel @Inject constructor(
 
     companion object {
         const val KEY_COUPON_ID = "couponId"
-        const val MAX_NAME_LENGTH = 30
-        const val MAX_QUANTITY = 999
-        const val MAX_NOTE_LENGTH = 100
+        // 單一來源在 data 層的 CouponLimits；這裡保留名稱給既有 UI 程式碼用
+        const val MAX_NAME_LENGTH = CouponLimits.MAX_NAME_LENGTH
+        const val MAX_QUANTITY = CouponLimits.MAX_QUANTITY
+        const val MAX_NOTE_LENGTH = CouponLimits.MAX_NOTE_LENGTH
     }
 }
 

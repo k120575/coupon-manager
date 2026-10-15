@@ -70,6 +70,8 @@ npx wrangler d1 create coupon-manager
 # 按順序執行
 npx wrangler d1 execute coupon-manager --remote --file=./migrations/0001_initial.sql
 npx wrangler d1 execute coupon-manager --remote --file=./migrations/0002_add_quantity.sql
+npx wrangler d1 execute coupon-manager --remote --file=./migrations/0003_text_timestamps_utc8.sql
+npx wrangler d1 execute coupon-manager --remote --file=./migrations/0004_usage_counters.sql
 ```
 
 ### 4. 設定 runtime secrets（三個都要）
@@ -143,6 +145,22 @@ Runtime secrets（LINE_*, GEMINI_*）**不需要**放 GitHub，它們存在 Clou
 倒過來會導致新程式碼上線時欄位還不存在、全部 SQL 爆掉。
 
 ---
+
+## 成本閘（每日上限）
+
+LINE 圖片辨識與 App `/ocr` 都會花 Gemini 費用，`批次存入` 會大量寫 D1。
+`src/config.ts` 有一組每日上限（每人／每 IP／全站），計數存在 D1 `usage_counters`
+（migration `0004`），以台灣日期為一天，cron 每天清掉 7 天前的列。被擋時：
+
+- LINE 圖片 → 回「今天的圖片辨識次數已達上限」
+- App `/ocr` → HTTP 429 `{"error":"quota_exceeded"}`（App 1.0.9+ 會翻成「今天的辨識次數已達上限」）
+- 批次存入 → 一則最多 30 行；每人 active 票券最多 500 筆
+
+調整數字改 `config.ts` 後 deploy 即可。看今天用量：
+
+```bash
+npm run db:query -- "SELECT * FROM usage_counters WHERE day = date('now', '+8 hours') ORDER BY count DESC"
+```
 
 ## 本機開發
 

@@ -18,14 +18,18 @@
  * {
  *   "error": "ai_busy" | "ai_unavailable" | "ai_timeout" | "ai_failed" | "ai_blocked"
  *          | "image_invalid" | "image_too_large" | "bad_request" | "unauthorized"
- *          | "network_error" | "internal_error"
+ *          | "quota_exceeded" | "network_error" | "internal_error"
  * }
  * App 端依 error code 翻譯成使用者語言。所有錯誤情境都會被分類到上述其中一個 code。
  */
 
+import { APP_OCR_DAILY_GLOBAL, APP_OCR_DAILY_PER_IP, MAX_NAME_LENGTH } from './config.js';
+import { bumpDailyCounter } from './db.js';
 import type { Env } from './env.js';
 import { GeminiError, generateTextFromImage, resolveOcrModels } from './gemini.js';
 import type { GeminiErrorCode } from './gemini.js';
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 interface AppOcrResponse {
   name: string | null;
@@ -37,6 +41,7 @@ type OcrErrorCode =
   | 'unauthorized'        // 401  — token 不對
   | 'bad_request'         // 400  — content-type / body 不合法
   | 'image_too_large'     // 413  — > 5MB
+  | 'quota_exceeded'      // 429  — 每日成本閘（每 IP 或全站）
   | GeminiErrorCode;      // 其餘 Gemini 相關錯誤碼定義在 gemini.ts
 
 /**
@@ -69,10 +74,29 @@ export async function handleAppOcr(request: Request, env: Env): Promise<Response
     return errorResponse('unauthorized', 401);
   }
 
+  // === 成本閘（token 是全裝置共用、可從 APK 取出，所以不能只靠它）===
+  // 每個來源 IP 每日 + 全站每日；先加再比，被拒的那次也留紀錄。
+  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  const ipCount = await bumpDailyCounter(env.DB, `app:ip:${ip}`);
+  if (ipCount > APP_OCR_DAILY_PER_IP) {
+    console.warn(`App OCR per-IP daily limit hit: ${ip} ${ipCount}`);
+    return errorResponse('quota_exceeded', 429);
+  }
+  const globalCount = await bumpDailyCounter(env.DB, 'app:global');
+  if (globalCount > APP_OCR_DAILY_GLOBAL) {
+    console.warn(`App OCR global daily limit hit: ${globalCount}`);
+    return errorResponse('quota_exceeded', 429);
+  }
+
   // === 讀圖 ===
   const contentType = request.headers.get('content-type') ?? 'image/jpeg';
   if (!contentType.startsWith('image/')) {
     return errorResponse('bad_request', 400);
+  }
+  // 有 Content-Length 就先擋，不要把超大 body 整個讀進記憶體
+  const declaredLength = Number(request.headers.get('content-length') ?? '0');
+  if (declaredLength > MAX_IMAGE_BYTES) {
+    return errorResponse('image_too_large', 413);
   }
 
   let bytes: ArrayBuffer;
@@ -85,7 +109,7 @@ export async function handleAppOcr(request: Request, env: Env): Promise<Response
   if (bytes.byteLength === 0) {
     return errorResponse('bad_request', 400);
   }
-  if (bytes.byteLength > 5 * 1024 * 1024) {
+  if (bytes.byteLength > MAX_IMAGE_BYTES) {
     return errorResponse('image_too_large', 413);
   }
 
@@ -143,6 +167,7 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
     generationConfig: {
       responseMimeType: 'application/json',
       temperature: 0.1, // 低溫度讓辨識結果穩定
+      maxOutputTokens: 256, // 回應只有三個短欄位；同時擋掉圖片提示注入要模型吐超長內容
     },
     tag: 'App OCR',
   });
@@ -155,7 +180,10 @@ categoryId 可用值（括號內是該分類涵蓋的典型店家/品項）：
   try {
     const parsed = JSON.parse(raw) as Partial<AppOcrResponse>;
     return {
-      name: typeof parsed.name === 'string' && parsed.name.trim() !== '' ? parsed.name.trim() : null,
+      name:
+        typeof parsed.name === 'string' && parsed.name.trim() !== ''
+          ? parsed.name.trim().slice(0, MAX_NAME_LENGTH)
+          : null,
       expireDate: normalizeDate(parsed.expireDate),
       categoryId: normalizeCategoryId(parsed.categoryId),
     };

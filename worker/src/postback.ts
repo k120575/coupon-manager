@@ -1,6 +1,7 @@
-import { DEFAULT_CATEGORY, isCategory } from './config.js';
+import { DEFAULT_CATEGORY, MAX_ACTIVE_COUPONS_PER_USER, isCategory } from './config.js';
 import { buildCouponListMessage } from './coupon-list.js';
 import {
+  countActiveCoupons,
   deleteCoupon,
   getActiveCouponInfo,
   hasAgreed,
@@ -11,6 +12,13 @@ import {
   takePending,
   useCoupon,
 } from './db.js';
+
+const LIMIT_REACHED_MSG = `⚠️ 票券已達 ${MAX_ACTIVE_COUPONS_PER_USER} 筆上限，請先清理用過或過期的券再新增。`;
+
+/** 還能存幾筆（每人 active 上限扣掉現有）。 */
+async function remainingRoom(env: Env, userId: string): Promise<number> {
+  return MAX_ACTIVE_COUPONS_PER_USER - (await countActiveCoupons(env.DB, userId));
+}
 import { lineReply } from './line.js';
 import {
   actionQuantityPickerMessage,
@@ -228,6 +236,10 @@ async function handleCategorySelection(
     ]);
     return;
   }
+  if ((await remainingRoom(env, userId)) <= 0) {
+    await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [textMsg(LIMIT_REACHED_MSG)]);
+    return;
+  }
   await insertCoupon(env.DB, userId, pending.name, pending.date, cat, pending.quantity);
   const qtyTag = pending.quantity > 1 ? `（×${pending.quantity} 張）` : '';
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
@@ -277,11 +289,18 @@ async function handleForceBatch(env: Env, replyToken: string, userId: string): P
     ]);
     return;
   }
-  for (const item of pending.items) {
+  const room = await remainingRoom(env, userId);
+  const items = pending.items.slice(0, Math.max(0, room));
+  for (const item of items) {
     await insertCoupon(env.DB, userId, item.name, item.date, item.category, item.quantity);
   }
+  const skipped = pending.items.length - items.length;
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    textMsg(`✅ 已強制存入 ${pending.items.length} 筆`),
+    textMsg(
+      skipped > 0
+        ? `✅ 已強制存入 ${items.length} 筆\n${LIMIT_REACHED_MSG}（${skipped} 筆沒存入）`
+        : `✅ 已強制存入 ${items.length} 筆`,
+    ),
   ]);
 }
 
@@ -318,13 +337,17 @@ async function handleOcrSaveAll(env: Env, replyToken: string, userId: string): P
     ]);
     return;
   }
+  const room = await remainingRoom(env, userId);
+  const items = pending.items.slice(0, Math.max(0, room));
   const lines: string[] = [];
-  for (const item of pending.items) {
+  for (const item of items) {
     await insertCoupon(env.DB, userId, item.name, item.date, item.category);
     const emoji = (isCategory(item.category) ? item.category : DEFAULT_CATEGORY).split(' ')[0];
     lines.push(`${emoji} ${item.name}`);
   }
+  const skipped = pending.items.length - items.length;
+  const tail = skipped > 0 ? `\n\n${LIMIT_REACHED_MSG}（${skipped} 筆沒存入）` : '';
   await lineReply(env.LINE_CHANNEL_ACCESS_TOKEN, replyToken, [
-    textMsg(`💾 已存入 ${pending.items.length} 筆票券！\n\n${lines.join('\n')}`),
+    textMsg(`💾 已存入 ${items.length} 筆票券！\n\n${lines.join('\n')}${tail}`),
   ]);
 }
