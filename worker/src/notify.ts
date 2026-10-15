@@ -5,6 +5,9 @@ import { getCategoryEmoji } from './messages.js';
 import { toIsoDate } from './parser.js';
 import type { Env } from './env.js';
 
+/** LINE 文字訊息上限 5,000 字，留一點餘裕 */
+const MAX_PUSH_TEXT = 4_900;
+
 export async function runDailyNotify(env: Env): Promise<void> {
   await cleanupExpiredPending(env.DB);
   await cleanupOldUsageCounters(env.DB);
@@ -30,11 +33,12 @@ export async function runDailyNotify(env: Env): Promise<void> {
   }
 
   for (const [uid, list] of notifications) {
-    await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, uid, [
-      {
-        type: 'text',
-        text: `⏰ 【到期提醒】\n\n${list.join('\n')}\n\n請記得盡快使用！`,
-      },
-    ]);
+    // 一個人的推播失敗（網路層 throw、超長被 LINE 拒）不能讓後面所有人都收不到
+    try {
+      const text = `⏰ 【到期提醒】\n\n${list.join('\n')}\n\n請記得盡快使用！`.slice(0, MAX_PUSH_TEXT);
+      await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, uid, [{ type: 'text', text }]);
+    } catch (e) {
+      console.error(`Daily notify push failed for ${uid}:`, e);
+    }
   }
 }

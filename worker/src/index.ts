@@ -5,6 +5,7 @@ import { lineReply } from './line.js';
 import { consentMessage, textMsg } from './messages.js';
 import { runDailyNotify } from './notify.js';
 import { handleAppOcr } from './ocr-api.js';
+import { parsePostbackParams } from './parser.js';
 import { handlePostback } from './postback.js';
 import { verifyLineSignature } from './signature.js';
 import { handleTextMessage } from './text.js';
@@ -72,7 +73,8 @@ async function dispatchEvent(env: Env, event: LineEvent): Promise<void> {
   // Postback 的 'agree' 例外處理：允許未同意者觸發
   if (event.type === 'postback') {
     const pData = (event as { postback: { data: string } }).postback.data;
-    if (pData.startsWith('action=agree')) {
+    // 用解析後的 action 判斷，不用字串前綴：'action=agree&action=xxx' 會被後者覆蓋成 xxx
+    if (parsePostbackParams(pData).action === 'agree') {
       await handlePostback(env, replyToken, userId, pData);
       return;
     }

@@ -58,7 +58,7 @@ class BackupViewModel @Inject constructor(
             try {
                 val json = withContext(Dispatchers.IO) {
                     resolver.openInputStream(uri)?.use { stream ->
-                        stream.readBytes().toString(Charsets.UTF_8)
+                        readBounded(stream, MAX_IMPORT_BYTES).toString(Charsets.UTF_8)
                     } ?: throw IllegalStateException("無法讀取檔案")
                 }
                 val result = backupRepository.importFromJson(json)
@@ -72,6 +72,27 @@ class BackupViewModel @Inject constructor(
             }
         }
     }
+}
+
+/** 備份檔大小上限：照片已降析度、單張數百 KB，幾百張券也不會到這個數字 */
+private const val MAX_IMPORT_BYTES = 20L * 1024 * 1024
+
+/**
+ * 讀到 [max] bytes 為止；超過就丟 [BackupParseException]。
+ * 不用 readBytes()：選到超大檔會整個讀進記憶體，OutOfMemoryError 是 Error 不是 Exception，catch 接不到就閃退。
+ */
+private fun readBounded(stream: java.io.InputStream, max: Long): ByteArray {
+    val out = java.io.ByteArrayOutputStream()
+    val buf = ByteArray(64 * 1024)
+    var total = 0L
+    while (true) {
+        val n = stream.read(buf)
+        if (n < 0) break
+        total += n
+        if (total > max) throw BackupParseException("備份檔太大（超過 ${max / 1024 / 1024} MB），請確認選對檔案")
+        out.write(buf, 0, n)
+    }
+    return out.toByteArray()
 }
 
 sealed interface BackupEvent {
